@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: financialsystempro_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: g123
+      POSTGRES_DB: database
+    ports:
+      - "5432:5432"
+    volumes:
+      - financialsystempro_postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+volumes:
+  financialsystempro_postgres_data:
