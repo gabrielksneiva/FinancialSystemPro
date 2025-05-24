@@ -1,23 +1,20 @@
 package repositories
 
-import (
-	"log"
+import "gorm.io/gorm"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-)
+type NewDatabase struct {
+	DB *gorm.DB
+}
 
-var DB *gorm.DB
+func (d *NewDatabase) Insert(value any) error {
+	return d.DB.Create(value).Error
+}
 
-func ConnectDatabase(dsn string) {
-	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+func (db *NewDatabase) FindUserByField(field string, value any) (*User, error) {
+	var user User
+	err := db.DB.Model(&User{}).Where(field+" = ?", value).First(&user).Error
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		return nil, err
 	}
-
-	err = DB.AutoMigrate(&User{}, &Account{}, &Balance{}, &Transaction{}, &AuditLog{})
-	if err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
-	}
+	return &user, nil
 }

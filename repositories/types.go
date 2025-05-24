@@ -8,21 +8,21 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	Email     string    `gorm:"type:text;unique;not null"`
 	Password  string    `gorm:"type:text;not null"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
 type Account struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null"`
 	Name      string    `gorm:"type:text;not null"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
 type Balance struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null"`
 	User      User      `gorm:"foreignKey:UserID;references:ID"`
 	Amount    float64   `gorm:"type:numeric(15,2);not null"`
