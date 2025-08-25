@@ -11,6 +11,7 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 
 	app.Post("/api/users", handler.CreateUser)
 	app.Post("/api/login", handler.Login)
+	app.Post("/api/deposit", handler.Deposit)
 
 	protectedPaths := app.Group("/api", VerifyJWTMiddleware())
 	protectedPaths.Post("/deposit", func(c *fiber.Ctx) error { return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "OK"}) })

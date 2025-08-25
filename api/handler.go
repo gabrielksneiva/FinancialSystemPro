@@ -41,3 +41,13 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Login succesfully", "token": tokenJWT})
 }
+
+func (h* NewHandler) Deposit(ctx *fiber.Ctx) error{
+	var depositRequest domain.DepositRequest
+	err := isValid(ctx, &depositRequest)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Deposit succesfully"})
+}

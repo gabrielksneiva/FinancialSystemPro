@@ -1,6 +1,9 @@
 package repositories
 
-import "gorm.io/gorm"
+import (
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+)
 
 type NewDatabase struct {
 	DB *gorm.DB
@@ -17,4 +20,8 @@ func (db *NewDatabase) FindUserByField(field string, value any) (*User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (db *NewDatabase) Deposit(userID string, amount decimal.Decimal) error {
+	return db.DB.Model(&Balance{}).Where("user_id = ?", userID).Update("amount", gorm.Expr("amount + ?", amount)).Error
 }
