@@ -6,14 +6,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func router(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService) {
-	handler := &NewHandler{userService: userService, authService: authService}
+func router(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, trasactionService *services.NewTransactionService) {
+	handler := &NewHandler{userService: userService, authService: authService, transactionService: trasactionService}
 
 	app.Post("/api/users", handler.CreateUser)
 	app.Post("/api/login", handler.Login)
-	app.Post("/api/deposit", handler.Deposit)
 
 	protectedPaths := app.Group("/api", VerifyJWTMiddleware())
-	protectedPaths.Post("/deposit", func(c *fiber.Ctx) error { return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "OK"}) })
+	protectedPaths.Post("/deposit", handler.Deposit)
 
 }

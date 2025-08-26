@@ -34,10 +34,11 @@ func Start() {
 	database := &repositories.NewDatabase{DB: db}
 	userService := &services.NewUserService{Database: database}
 	authService := &services.NewAuthService{Database: database}
+	trasactionService := &services.NewTransactionService{Database: database}
 
 	app := fiber.New()
 
-	router(app, userService, authService)
+	router(app, userService, authService, trasactionService)
 
 	app.Listen(":3000")
 }

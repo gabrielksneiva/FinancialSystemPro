@@ -5,11 +5,13 @@ import (
 	"financial-system-pro/services"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/shopspring/decimal"
 )
 
 type NewHandler struct {
-	userService *services.NewUserService
-	authService *services.NewAuthService
+	userService        *services.NewUserService
+	authService        *services.NewAuthService
+	transactionService *services.NewTransactionService
 }
 
 func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
@@ -42,11 +44,25 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Login succesfully", "token": tokenJWT})
 }
 
-func (h* NewHandler) Deposit(ctx *fiber.Ctx) error{
+func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 	var depositRequest domain.DepositRequest
 	err := isValid(ctx, &depositRequest)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	amount, err := decimal.NewFromString(depositRequest.Amount)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid amount format"})
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
+	}
+
+	err = h.transactionService.Deposit(ctx, amount)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Deposit succesfully"})

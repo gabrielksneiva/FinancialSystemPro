@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -22,6 +23,18 @@ func (db *NewDatabase) FindUserByField(field string, value any) (*User, error) {
 	return &user, nil
 }
 
-func (db *NewDatabase) Deposit(userID string, amount decimal.Decimal) error {
+func (db *NewDatabase) Deposit(userID uuid.UUID, amount decimal.Decimal) error {
+	var balance Balance
+	err := db.DB.Where("user_id = ?", userID).First(&balance).Error
+	if err == gorm.ErrRecordNotFound {
+		balance = Balance{
+			UserID: userID,
+			Amount: amount,
+		}
+		return db.DB.Create(&balance).Error
+	} else if err != nil {
+		return err
+	}
+
 	return db.DB.Model(&Balance{}).Where("user_id = ?", userID).Update("amount", gorm.Expr("amount + ?", amount)).Error
 }

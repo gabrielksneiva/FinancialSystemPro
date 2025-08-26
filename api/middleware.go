@@ -11,9 +11,7 @@ import (
 func VerifyJWTMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := c.Get("Authorization")
-		if strings.HasPrefix(token, "Bearer ") {
-			token = strings.TrimPrefix(token, "Bearer ")
-		}
+		token, _ = strings.CutPrefix(token, "Bearer ")
 
 		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Missing or invalid token"})

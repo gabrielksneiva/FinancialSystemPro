@@ -1,5 +1,4 @@
 package domain
-import "github.com/shopspring/decimal"
 
 type UserRequest struct {
 	Email    string `json:"email" validate:"required,email"`
@@ -11,6 +10,6 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
-type DepositRequest struct{
-	Amount decimal.Decimal `json:"amount" validate:"required, gt=0"`
+type DepositRequest struct {
+	Amount string `json:"amount" validate:"required"`
 }
