@@ -20,13 +20,19 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 	})
 	app.Get("/docs/*", fiberSwagger.WrapHandler)
 
+	usersRoutes(app, handler)
+	transactionsRoutes(app, handler)
+}
+
+func usersRoutes(app *fiber.App, handler *NewHandler) {
 	app.Post("/api/users", handler.CreateUser)
 	app.Post("/api/login", handler.Login)
+}
 
+func transactionsRoutes(app *fiber.App, handler *NewHandler) {
 	protectedPaths := app.Group("/api", VerifyJWTMiddleware())
-	protectedPaths.Post("/deposit", handler.Deposit)
-
-	protectedPaths.Get("/balance", handler.Balance)
-
-	protectedPaths.Post("/withdraw", handler.Withdraw)
+	protectedPaths.Post("/api/deposits", handler.Deposit)
+	protectedPaths.Post("/api/withdraws", handler.Withdraw)
+	protectedPaths.Post("/api/transfers", handler.Transfer)
+	protectedPaths.Get("/api/balance", handler.Balance)
 }

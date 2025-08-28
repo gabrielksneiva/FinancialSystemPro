@@ -109,7 +109,7 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      201  {object}  map[string]interface{}
+// @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/balance [get]
@@ -127,7 +127,18 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"balance": balance})
 }
 
-
+// CreateUser godoc
+// @Summary      Retira valor da conta do usuário
+// @Description  Endpoint para retirar valor da conta do usuário
+// @Tags         withdraw
+// @Accept       json
+// @Produce      json
+// @Param        withdrawRequest  body  domain.WithdrawRequest  true  "Dados do saque"
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /api/withdraw [post]
 func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 	var withdrawRequest domain.WithdrawRequest
 	err := isValid(ctx, &withdrawRequest)
@@ -149,5 +160,5 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return ctx.Status (fiber.StatusOK).JSON((fiber.Map{"message": "Withdraw succesfully"}))
+	return ctx.Status(fiber.StatusOK).JSON((fiber.Map{"message": "Withdraw succesfully"}))
 }

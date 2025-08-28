@@ -26,6 +26,13 @@ definitions:
     - email
     - password
     type: object
+  domain.WithdrawRequest:
+    properties:
+      amount:
+        type: string
+    required:
+    - amount
+    type: object
 info:
   contact: {}
   description: API do FinancialSystemPro
@@ -40,8 +47,8 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
             additionalProperties: true
             type: object
@@ -161,6 +168,41 @@ paths:
       summary: Cria um novo usuário
       tags:
       - users
+  /api/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint para retirar valor da conta do usuário
+      parameters:
+      - description: Dados do saque
+        in: body
+        name: withdrawRequest
+        required: true
+        schema:
+          $ref: '#/definitions/domain.WithdrawRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Retira valor da conta do usuário
+      tags:
+      - withdraw
 securityDefinitions:
   BearerAuth:
     description: Digite "Bearer {seu_token}"
