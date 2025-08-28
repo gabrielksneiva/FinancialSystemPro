@@ -1,6 +1,7 @@
 package services
 
 import (
+	"financial-system-pro/domain"
 	"financial-system-pro/repositories"
 
 	"github.com/gofiber/fiber/v2"
@@ -65,18 +66,72 @@ func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal) e
 	if err != nil {
 		return err
 	}
-	
+
 	err = t.Database.Insert(&repositories.Transaction{
-		AccountID: uuid,
-		Amount: amount,
-		Type: "withdraw",
-		Category: "debit",
+		AccountID:   uuid,
+		Amount:      amount,
+		Type:        "withdraw",
+		Category:    "debit",
 		Description: "User withdraw",
 	})
 	if err != nil {
 		return err
 	}
 
-	return nil 
+	return nil
 }
 
+func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *domain.TransferRequest) error {
+	id := c.Locals("ID").(string)
+
+	userFrom, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	amount, err := decimal.NewFromString(transferRequest.Amount)
+	if err != nil {
+		return err
+	}
+
+	foundUser, err := t.Database.FindUserByField("email", transferRequest.To)
+	if err != nil {
+		return err
+	}
+
+	userTo := foundUser.ID
+
+	err = t.Database.Transaction(userFrom, amount, "withdraw")
+	if err != nil {
+		return err
+	}
+
+	err = t.Database.Transaction(userFrom, amount, "deposit")
+	if err != nil {
+		return err
+	}
+
+	err = t.Database.Insert(&repositories.Transaction{
+		AccountID:   userFrom,
+		Amount:      amount,
+		Type:        "transfer",
+		Category:    "debit",
+		Description: "User transfer to " + transferRequest.To,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = t.Database.Insert(&repositories.Transaction{
+		AccountID:   userTo,
+		Amount:      amount,
+		Type:        "transfer",
+		Category:    "credit",
+		Description: "User transfer from" + id,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

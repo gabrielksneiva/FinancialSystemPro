@@ -162,3 +162,18 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 
 	return ctx.Status(fiber.StatusOK).JSON((fiber.Map{"message": "Withdraw succesfully"}))
 }
+
+func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
+	var transferRequest domain.TransferRequest
+	err := isValid(ctx, &transferRequest)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	err = h.transactionService.Transfer(ctx, &transferRequest)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON((fiber.Map{"message": "Transfer succesfully"}))
+}

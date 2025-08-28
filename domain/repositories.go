@@ -21,3 +21,8 @@ type BalanceRequest struct {
 type WithdrawRequest struct {
 	Amount string `json:"amount" validate:"required"`
 }
+
+type TransferRequest struct {
+	Amount string `json:"amount" validate:"required"`
+	To string `json:"to" validate:"required,email"`
+}
