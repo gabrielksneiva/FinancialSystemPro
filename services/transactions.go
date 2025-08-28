@@ -20,7 +20,7 @@ func (t *NewTransactionService) Deposit(c *fiber.Ctx, amount decimal.Decimal) er
 		return err
 	}
 
-	err = t.Database.Deposit(uid, amount)
+	err = t.Database.Transaction(uid, amount, "deposit")
 	if err != nil {
 		return err
 	}
@@ -52,3 +52,31 @@ func (t *NewTransactionService) GetBalance(c *fiber.Ctx, userID string) (decimal
 
 	return response, nil
 }
+
+func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal) error {
+	id := c.Locals("ID").(string)
+
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	err = t.Database.Transaction(uuid, amount, "withdraw")
+	if err != nil {
+		return err
+	}
+	
+	err = t.Database.Insert(&repositories.Transaction{
+		AccountID: uuid,
+		Amount: amount,
+		Type: "withdraw",
+		Category: "debit",
+		Description: "User withdraw",
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil 
+}
+

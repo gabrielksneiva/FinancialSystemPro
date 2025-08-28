@@ -125,5 +125,29 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"balance": balance})
+}
 
+
+func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
+	var withdrawRequest domain.WithdrawRequest
+	err := isValid(ctx, &withdrawRequest)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	amount, err := decimal.NewFromString((withdrawRequest.Amount))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid amount format"})
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
+	}
+
+	err = h.transactionService.Withdraw(ctx, amount)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return ctx.Status (fiber.StatusOK).JSON((fiber.Map{"message": "Withdraw succesfully"}))
 }

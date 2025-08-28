@@ -17,3 +17,7 @@ type DepositRequest struct {
 type BalanceRequest struct {
 	UserID string `json:"user_id" validate:"required"`
 }
+
+type WithdrawRequest struct {
+	Amount string `json:"amount" validate:"required"`
+}

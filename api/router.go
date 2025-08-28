@@ -28,4 +28,5 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 
 	protectedPaths.Get("/balance", handler.Balance)
 
+	protectedPaths.Post("/withdraw", handler.Withdraw)
 }

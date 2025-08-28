@@ -1,4 +1,3 @@
-- Fazer a parte de Get Balances
 - Fazer a parte de Withdraws
 - Fazer a parte de Transfers (lembrar de associar a coluna "related_account_id" à tabela users)
 - Transformar num sistema assíncrono com Channels e Workers + usar sistema de webhooks para callbacks
