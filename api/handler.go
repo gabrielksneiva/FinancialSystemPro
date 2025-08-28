@@ -14,6 +14,17 @@ type NewHandler struct {
 	transactionService *services.NewTransactionService
 }
 
+// CreateUser godoc
+// @Summary      Cria um novo usuário
+// @Description  Endpoint para criar usuário
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        userRequest  body  domain.UserRequest  true  "Dados do usuário"
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /users [post]
 func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 	var userRequest domain.UserRequest
 	err := isValid(ctx, &userRequest)
@@ -29,6 +40,17 @@ func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User created succesfully"})
 }
 
+// CreateUser godoc
+// @Summary      Autentica usuário
+// @Description  Endpoint para autenticar usuário
+// @Tags         login
+// @Accept       json
+// @Produce      json
+// @Param        loginRequest  body  domain.LoginRequest  true  "Dados de login"
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /login [post]
 func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 	var loginRequest domain.LoginRequest
 	err := isValid(ctx, &loginRequest)
@@ -44,6 +66,17 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Login succesfully", "token": tokenJWT})
 }
 
+// CreateUser godoc
+// @Summary      Deposita valor na conta do usuário
+// @Description  Endpoint para depositar valor na conta do usuário
+// @Tags         deposit
+// @Accept       json
+// @Produce      json
+// @Param        userRequest  body  domain.DepositRequest  true  "Dados do depósito"
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /deposit [post]
 func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 	var depositRequest domain.DepositRequest
 	err := isValid(ctx, &depositRequest)
