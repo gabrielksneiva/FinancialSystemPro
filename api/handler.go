@@ -100,3 +100,21 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Deposit succesfully"})
 }
+
+func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
+	var balanceRequest domain.BalanceRequest
+	balanceRequest.UserID = ctx.Locals("user_id").(string)
+
+	err := isValid(ctx, &balanceRequest)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	balance, err := h.transactionService.GetBalance(ctx, &balanceRequest)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"balance": balance})
+
+}

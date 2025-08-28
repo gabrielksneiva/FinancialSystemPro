@@ -1,6 +1,7 @@
 package services
 
 import (
+	"financial-system-pro/domain"
 	"financial-system-pro/repositories"
 
 	"github.com/gofiber/fiber/v2"
@@ -37,4 +38,18 @@ func (t *NewTransactionService) Deposit(c *fiber.Ctx, amount decimal.Decimal) er
 	}
 
 	return nil
+}
+
+func (t *NewTransactionService) GetBalance(c *fiber.Ctx, request *domain.BalanceRequest) (decimal.Decimal, error) {
+	uid, err := uuid.Parse(request.UserID)
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	response, err := t.Database.Balance(uid)
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	return response, nil
 }

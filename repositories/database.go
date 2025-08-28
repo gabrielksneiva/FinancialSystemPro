@@ -38,3 +38,13 @@ func (db *NewDatabase) Deposit(userID uuid.UUID, amount decimal.Decimal) error {
 
 	return db.DB.Model(&Balance{}).Where("user_id = ?", userID).Update("amount", gorm.Expr("amount + ?", amount)).Error
 }
+
+func (db *NewDatabase) Balance(userID uuid.UUID) (decimal.Decimal, error) {
+	var balance Balance
+	err := db.DB.Where("user_id = ?", userID).First(&balance).Error
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	return balance.Amount, nil
+}

@@ -13,3 +13,7 @@ type LoginRequest struct {
 type DepositRequest struct {
 	Amount string `json:"amount" validate:"required"`
 }
+
+type BalanceRequest struct {
+	UserID string `json:"user_id" validate:"required"`
+}

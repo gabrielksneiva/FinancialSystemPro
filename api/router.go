@@ -26,4 +26,6 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 	protectedPaths := app.Group("/api", VerifyJWTMiddleware())
 	protectedPaths.Post("/deposit", handler.Deposit)
 
+	protectedPaths.Get("/balance", handler.Balance)
+
 }
