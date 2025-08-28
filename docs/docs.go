@@ -15,8 +15,56 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/deposit": {
+        "/api/balance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint para consultar o saldo da conta do usuário",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "balance"
+                ],
+                "summary": "Consulta o saldo da conta do usuário",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/deposit": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Endpoint para depositar valor na conta do usuário",
                 "consumes": [
                     "application/json"
@@ -31,7 +79,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "Dados do depósito",
-                        "name": "userRequest",
+                        "name": "depositRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -64,7 +112,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/login": {
+        "/api/login": {
             "post": {
                 "description": "Endpoint para autenticar usuário",
                 "consumes": [
@@ -113,7 +161,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users": {
+        "/api/users": {
             "post": {
                 "description": "Endpoint para criar usuário",
                 "consumes": [
@@ -205,17 +253,25 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Digite \"Bearer {seu_token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "1.0",
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "FinancialSystemPro API",
+	Description:      "API do FinancialSystemPro",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

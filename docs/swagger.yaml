@@ -28,8 +28,39 @@ definitions:
     type: object
 info:
   contact: {}
+  description: API do FinancialSystemPro
+  title: FinancialSystemPro API
+  version: "1.0"
 paths:
-  /deposit:
+  /api/balance:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint para consultar o saldo da conta do usuário
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Consulta o saldo da conta do usuário
+      tags:
+      - balance
+  /api/deposit:
     post:
       consumes:
       - application/json
@@ -37,7 +68,7 @@ paths:
       parameters:
       - description: Dados do depósito
         in: body
-        name: userRequest
+        name: depositRequest
         required: true
         schema:
           $ref: '#/definitions/domain.DepositRequest'
@@ -59,10 +90,12 @@ paths:
           schema:
             additionalProperties: true
             type: object
+      security:
+      - BearerAuth: []
       summary: Deposita valor na conta do usuário
       tags:
       - deposit
-  /login:
+  /api/login:
     post:
       consumes:
       - application/json
@@ -95,7 +128,7 @@ paths:
       summary: Autentica usuário
       tags:
       - login
-  /users:
+  /api/users:
     post:
       consumes:
       - application/json
@@ -128,4 +161,10 @@ paths:
       summary: Cria um novo usuário
       tags:
       - users
+securityDefinitions:
+  BearerAuth:
+    description: Digite "Bearer {seu_token}"
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

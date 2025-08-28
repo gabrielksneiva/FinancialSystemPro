@@ -1,11 +1,62 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "API do FinancialSystemPro",
+        "title": "FinancialSystemPro API",
+        "contact": {},
+        "version": "1.0"
     },
     "paths": {
-        "/deposit": {
+        "/api/balance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint para consultar o saldo da conta do usuário",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "balance"
+                ],
+                "summary": "Consulta o saldo da conta do usuário",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/deposit": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Endpoint para depositar valor na conta do usuário",
                 "consumes": [
                     "application/json"
@@ -20,7 +71,7 @@
                 "parameters": [
                     {
                         "description": "Dados do depósito",
-                        "name": "userRequest",
+                        "name": "depositRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -53,7 +104,7 @@
                 }
             }
         },
-        "/login": {
+        "/api/login": {
             "post": {
                 "description": "Endpoint para autenticar usuário",
                 "consumes": [
@@ -102,7 +153,7 @@
                 }
             }
         },
-        "/users": {
+        "/api/users": {
             "post": {
                 "description": "Endpoint para criar usuário",
                 "consumes": [
@@ -193,6 +244,14 @@
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Digite \"Bearer {seu_token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

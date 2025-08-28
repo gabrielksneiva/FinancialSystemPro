@@ -24,7 +24,7 @@ type NewHandler struct {
 // @Success      201  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
-// @Router       /users [post]
+// @Router       /api/users [post]
 func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 	var userRequest domain.UserRequest
 	err := isValid(ctx, &userRequest)
@@ -50,7 +50,7 @@ func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 // @Success      201  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
-// @Router       /login [post]
+// @Router       /api/login [post]
 func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 	var loginRequest domain.LoginRequest
 	err := isValid(ctx, &loginRequest)
@@ -72,11 +72,12 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 // @Tags         deposit
 // @Accept       json
 // @Produce      json
-// @Param        userRequest  body  domain.DepositRequest  true  "Dados do depósito"
+// @Param        depositRequest  body  domain.DepositRequest  true  "Dados do depósito"
+// @Security     BearerAuth
 // @Success      201  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
-// @Router       /deposit [post]
+// @Router       /api/deposit [post]
 func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 	var depositRequest domain.DepositRequest
 	err := isValid(ctx, &depositRequest)
@@ -101,16 +102,24 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Deposit succesfully"})
 }
 
+// CreateUser godoc
+// @Summary      Consulta o saldo da conta do usuário
+// @Description  Endpoint para consultar o saldo da conta do usuário
+// @Tags         balance
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /api/balance [get]
 func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
-	var balanceRequest domain.BalanceRequest
-	balanceRequest.UserID = ctx.Locals("user_id").(string)
-
-	err := isValid(ctx, &balanceRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	UserID := ctx.Locals("ID").(string)
+	if UserID == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
-	balance, err := h.transactionService.GetBalance(ctx, &balanceRequest)
+	balance, err := h.transactionService.GetBalance(ctx, UserID)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
