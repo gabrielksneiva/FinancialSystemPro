@@ -1,2 +1,1 @@
 - Transformar num sistema assíncrono com Channels e Workers + usar sistema de webhooks para callbacks
-- 
