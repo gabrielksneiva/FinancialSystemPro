@@ -1,1 +1,2 @@
 - Transformar num sistema assíncrono com Channels e Workers + usar sistema de webhooks para callbacks
+- Criar conexão com blockchain EVM Based ou TRON Based (preferível TRON por ter assets disponíveis FREE pra teste)
