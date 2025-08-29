@@ -11,7 +11,8 @@ type LoginRequest struct {
 }
 
 type DepositRequest struct {
-	Amount string `json:"amount" validate:"required"`
+	Amount      string `json:"amount" validate:"required"`
+	CallbackURL string `json:"callback_url" validate:"omitempty,url"`
 }
 
 type BalanceRequest struct {
@@ -19,10 +20,12 @@ type BalanceRequest struct {
 }
 
 type WithdrawRequest struct {
-	Amount string `json:"amount" validate:"required"`
+	Amount      string `json:"amount" validate:"required"`
+	CallbackURL string `json:"callback_url" validate:"omitempty,url"`
 }
 
 type TransferRequest struct {
-	Amount string `json:"amount" validate:"required"`
-	To string `json:"to" validate:"required,email"`
+	Amount      string `json:"amount" validate:"required"`
+	To          string `json:"to" validate:"required,email"`
+	CallbackURL string `json:"callback_url" validate:"omitempty,url"`
 }

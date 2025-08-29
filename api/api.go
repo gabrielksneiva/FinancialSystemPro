@@ -3,6 +3,7 @@ package api
 import (
 	"financial-system-pro/repositories"
 	"financial-system-pro/services"
+	"financial-system-pro/workers"
 	"fmt"
 	"os"
 
@@ -34,7 +35,9 @@ func Start() {
 	database := &repositories.NewDatabase{DB: db}
 	userService := &services.NewUserService{Database: database}
 	authService := &services.NewAuthService{Database: database}
-	trasactionService := &services.NewTransactionService{Database: database}
+
+	workerPool := workers.NewTransactionWorkerPool(database, 5, 100)
+	trasactionService := &services.NewTransactionService{DB: database, W: workerPool}
 
 	app := fiber.New()
 

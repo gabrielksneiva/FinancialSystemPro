@@ -74,7 +74,7 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 // @Produce      json
 // @Param        depositRequest  body  domain.DepositRequest  true  "Dados do depósito"
 // @Security     BearerAuth
-// @Success      201  {object}  map[string]interface{}
+// @Success      202  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/deposit [post]
@@ -94,12 +94,12 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
-	err = h.transactionService.Deposit(ctx, amount)
+	resp, err := h.transactionService.Deposit(ctx, amount, depositRequest.CallbackURL)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Deposit succesfully"})
+	return ctx.Status(resp.StatusCode).JSON(resp.Body)
 }
 
 // CreateUser godoc
@@ -135,7 +135,7 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 // @Produce      json
 // @Param        withdrawRequest  body  domain.WithdrawRequest  true  "Dados do saque"
 // @Security     BearerAuth
-// @Success      200  {object}  map[string]interface{}
+// @Success      202  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/withdraw [post]
@@ -155,12 +155,12 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
-	err = h.transactionService.Withdraw(ctx, amount)
+	resp, err := h.transactionService.Withdraw(ctx, amount, withdrawRequest.CallbackURL)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON((fiber.Map{"message": "Withdraw succesfully"}))
+	return ctx.Status(resp.StatusCode).JSON(resp.Body)
 }
 
 // CreateUser godoc
@@ -171,7 +171,7 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 // @Produce      json
 // @Param        transferRequest  body  domain.TransferRequest  true  "Dados da transferência"
 // @Security     BearerAuth
-// @Success      200  {object}  map[string]interface{}
+// @Success      202  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/transfer [post]
@@ -182,10 +182,10 @@ func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	err = h.transactionService.Transfer(ctx, &transferRequest)
+	resp, err := h.transactionService.Transfer(ctx, &transferRequest)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON((fiber.Map{"message": "Transfer succesfully"}))
+	return ctx.Status(resp.StatusCode).JSON(resp.Body)
 }

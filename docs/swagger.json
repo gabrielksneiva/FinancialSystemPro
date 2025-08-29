@@ -80,8 +80,8 @@
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -183,8 +183,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -286,8 +286,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -320,6 +320,9 @@
             "properties": {
                 "amount": {
                     "type": "string"
+                },
+                "callback_url": {
+                    "type": "string"
                 }
             }
         },
@@ -346,6 +349,9 @@
             ],
             "properties": {
                 "amount": {
+                    "type": "string"
+                },
+                "callback_url": {
                     "type": "string"
                 },
                 "to": {
@@ -375,6 +381,9 @@
             ],
             "properties": {
                 "amount": {
+                    "type": "string"
+                },
+                "callback_url": {
                     "type": "string"
                 }
             }

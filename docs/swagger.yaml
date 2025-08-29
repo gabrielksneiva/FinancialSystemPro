@@ -3,6 +3,8 @@ definitions:
     properties:
       amount:
         type: string
+      callback_url:
+        type: string
     required:
     - amount
     type: object
@@ -19,6 +21,8 @@ definitions:
   domain.TransferRequest:
     properties:
       amount:
+        type: string
+      callback_url:
         type: string
       to:
         type: string
@@ -39,6 +43,8 @@ definitions:
   domain.WithdrawRequest:
     properties:
       amount:
+        type: string
+      callback_url:
         type: string
     required:
     - amount
@@ -92,8 +98,8 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "202":
+          description: Accepted
           schema:
             additionalProperties: true
             type: object
@@ -160,8 +166,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "202":
+          description: Accepted
           schema:
             additionalProperties: true
             type: object
@@ -228,8 +234,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "202":
+          description: Accepted
           schema:
             additionalProperties: true
             type: object

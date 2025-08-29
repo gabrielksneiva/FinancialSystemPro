@@ -88,8 +88,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -191,8 +191,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -294,8 +294,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -328,6 +328,9 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "string"
+                },
+                "callback_url": {
+                    "type": "string"
                 }
             }
         },
@@ -354,6 +357,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "amount": {
+                    "type": "string"
+                },
+                "callback_url": {
                     "type": "string"
                 },
                 "to": {
@@ -383,6 +389,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "amount": {
+                    "type": "string"
+                },
+                "callback_url": {
                     "type": "string"
                 }
             }
