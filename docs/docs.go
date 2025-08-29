@@ -30,7 +30,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "balance"
+                    "Transactions"
                 ],
                 "summary": "Consulta o saldo da conta do usuário",
                 "responses": {
@@ -73,7 +73,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "deposit"
+                    "Transactions"
                 ],
                 "summary": "Deposita valor na conta do usuário",
                 "parameters": [
@@ -122,7 +122,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "login"
+                    "Users"
                 ],
                 "summary": "Autentica usuário",
                 "parameters": [
@@ -161,6 +161,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/transfer": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint para transferir valor para outra conta",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Transfere valor para outra conta",
+                "parameters": [
+                    {
+                        "description": "Dados da transferência",
+                        "name": "transferRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.TransferRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "post": {
                 "description": "Endpoint para criar usuário",
@@ -171,7 +225,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "Users"
                 ],
                 "summary": "Cria um novo usuário",
                 "parameters": [
@@ -225,7 +279,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "withdraw"
+                    "Transactions"
                 ],
                 "summary": "Retira valor da conta do usuário",
                 "parameters": [
@@ -288,6 +342,21 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.TransferRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "to"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "to": {
                     "type": "string"
                 }
             }

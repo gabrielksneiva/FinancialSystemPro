@@ -16,6 +16,16 @@ definitions:
     - email
     - password
     type: object
+  domain.TransferRequest:
+    properties:
+      amount:
+        type: string
+      to:
+        type: string
+    required:
+    - amount
+    - to
+    type: object
   domain.UserRequest:
     properties:
       email:
@@ -66,7 +76,7 @@ paths:
       - BearerAuth: []
       summary: Consulta o saldo da conta do usuário
       tags:
-      - balance
+      - Transactions
   /api/deposit:
     post:
       consumes:
@@ -101,7 +111,7 @@ paths:
       - BearerAuth: []
       summary: Deposita valor na conta do usuário
       tags:
-      - deposit
+      - Transactions
   /api/login:
     post:
       consumes:
@@ -134,7 +144,42 @@ paths:
             type: object
       summary: Autentica usuário
       tags:
-      - login
+      - Users
+  /api/transfer:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint para transferir valor para outra conta
+      parameters:
+      - description: Dados da transferência
+        in: body
+        name: transferRequest
+        required: true
+        schema:
+          $ref: '#/definitions/domain.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Transfere valor para outra conta
+      tags:
+      - Transactions
   /api/users:
     post:
       consumes:
@@ -167,7 +212,7 @@ paths:
             type: object
       summary: Cria um novo usuário
       tags:
-      - users
+      - Users
   /api/withdraw:
     post:
       consumes:
@@ -202,7 +247,7 @@ paths:
       - BearerAuth: []
       summary: Retira valor da conta do usuário
       tags:
-      - withdraw
+      - Transactions
 securityDefinitions:
   BearerAuth:
     description: Digite "Bearer {seu_token}"

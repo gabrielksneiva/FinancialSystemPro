@@ -17,7 +17,7 @@ type NewHandler struct {
 // CreateUser godoc
 // @Summary      Cria um novo usuário
 // @Description  Endpoint para criar usuário
-// @Tags         users
+// @Tags         Users
 // @Accept       json
 // @Produce      json
 // @Param        userRequest  body  domain.UserRequest  true  "Dados do usuário"
@@ -43,7 +43,7 @@ func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 // CreateUser godoc
 // @Summary      Autentica usuário
 // @Description  Endpoint para autenticar usuário
-// @Tags         login
+// @Tags         Users
 // @Accept       json
 // @Produce      json
 // @Param        loginRequest  body  domain.LoginRequest  true  "Dados de login"
@@ -69,7 +69,7 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 // CreateUser godoc
 // @Summary      Deposita valor na conta do usuário
 // @Description  Endpoint para depositar valor na conta do usuário
-// @Tags         deposit
+// @Tags         Transactions
 // @Accept       json
 // @Produce      json
 // @Param        depositRequest  body  domain.DepositRequest  true  "Dados do depósito"
@@ -105,7 +105,7 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 // CreateUser godoc
 // @Summary      Consulta o saldo da conta do usuário
 // @Description  Endpoint para consultar o saldo da conta do usuário
-// @Tags         balance
+// @Tags         Transactions
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
@@ -130,7 +130,7 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 // CreateUser godoc
 // @Summary      Retira valor da conta do usuário
 // @Description  Endpoint para retirar valor da conta do usuário
-// @Tags         withdraw
+// @Tags         Transactions
 // @Accept       json
 // @Produce      json
 // @Param        withdrawRequest  body  domain.WithdrawRequest  true  "Dados do saque"
@@ -163,6 +163,18 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON((fiber.Map{"message": "Withdraw succesfully"}))
 }
 
+// CreateUser godoc
+// @Summary      Transfere valor para outra conta
+// @Description  Endpoint para transferir valor para outra conta
+// @Tags         Transactions
+// @Accept       json
+// @Produce      json
+// @Param        transferRequest  body  domain.TransferRequest  true  "Dados da transferência"
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /api/transfer [post]
 func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
 	var transferRequest domain.TransferRequest
 	err := isValid(ctx, &transferRequest)

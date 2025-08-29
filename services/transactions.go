@@ -101,12 +101,17 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *domain.T
 
 	userTo := foundUser.ID
 
+	foundUserFrom, err := t.Database.FindUserByField("id", id)
+	if err != nil {
+		return err
+	}
+
 	err = t.Database.Transaction(userFrom, amount, "withdraw")
 	if err != nil {
 		return err
 	}
 
-	err = t.Database.Transaction(userFrom, amount, "deposit")
+	err = t.Database.Transaction(userTo, amount, "deposit")
 	if err != nil {
 		return err
 	}
@@ -127,7 +132,7 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *domain.T
 		Amount:      amount,
 		Type:        "transfer",
 		Category:    "credit",
-		Description: "User transfer from" + id,
+		Description: "User transfer from " + foundUserFrom.Email,
 	})
 	if err != nil {
 		return err

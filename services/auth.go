@@ -27,6 +27,9 @@ func (a *NewAuthService) Login(loginData *domain.LoginRequest) (string, error) {
 	if !verifyPassword {
 		return "", fmt.Errorf("invalid password")
 	}
+	if err != nil {
+		return "", fmt.Errorf("error while comparing passwords: %s", err)
+	}
 
 	jwtToken, err := utils.CreateJWTToken(jwt.MapClaims{"ID": findUserInfo.ID})
 	if err != nil {
@@ -34,5 +37,4 @@ func (a *NewAuthService) Login(loginData *domain.LoginRequest) (string, error) {
 	}
 
 	return jwtToken, nil
-
 }
