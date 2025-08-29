@@ -20,7 +20,6 @@ type TransactionJob struct {
 	Account     uuid.UUID
 	Amount      decimal.Decimal
 	ToEmail     string
-	Req         any
 	CallbackURL string
 	JobID       uuid.UUID
 }

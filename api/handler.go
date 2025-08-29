@@ -182,7 +182,16 @@ func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	resp, err := h.transactionService.Transfer(ctx, &transferRequest)
+	amount, err := decimal.NewFromString(transferRequest.Amount)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid amount format"})
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
+	}
+
+	resp, err := h.transactionService.Transfer(ctx, amount, transferRequest.To, transferRequest.CallbackURL)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

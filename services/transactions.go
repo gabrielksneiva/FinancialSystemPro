@@ -1,7 +1,6 @@
 package services
 
 import (
-	d "financial-system-pro/domain"
 	r "financial-system-pro/repositories"
 	w "financial-system-pro/workers"
 
@@ -124,20 +123,11 @@ func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal, c
 	}, nil
 }
 
-func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *d.TransferRequest) (*ServiceResponse, error) {
+func (t *NewTransactionService) Transfer(c *fiber.Ctx, amount decimal.Decimal, userTo, callbackURL string) (*ServiceResponse, error) {
 	id := c.Locals("ID").(string)
 	userFrom, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
-	}
-
-	amount, err := decimal.NewFromString(transferRequest.Amount)
-	if err != nil {
-		return nil, err
-	}
-
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return nil, fiber.NewError(fiber.StatusBadRequest, "Amount must be greater than zero")
 	}
 
 	if t.W != nil {
@@ -145,9 +135,8 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *d.Transf
 			Type:        w.JobTransfer,
 			Account:     userFrom,
 			Amount:      amount,
-			ToEmail:     transferRequest.To,
-			Req:         transferRequest,
-			CallbackURL: transferRequest.CallbackURL,
+			ToEmail:     userTo,
+			CallbackURL: callbackURL,
 			JobID:       uuid.New(),
 		}
 
@@ -163,11 +152,11 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *d.Transf
 	}
 
 	// fallback synchronous processing if worker pool is not initialized
-	foundUser, err := t.DB.FindUserByField("email", transferRequest.To)
+	foundUser, err := t.DB.FindUserByField("email", userTo)
 	if err != nil {
 		return nil, err
 	}
-	userTo := foundUser.ID
+	destinyUserID := foundUser.ID
 
 	foundUserFrom, err := t.DB.FindUserByField("id", userFrom.String())
 	if err != nil {
@@ -177,7 +166,7 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *d.Transf
 	if err := t.DB.Transaction(userFrom, amount, "withdraw"); err != nil {
 		return nil, err
 	}
-	if err := t.DB.Transaction(userTo, amount, "deposit"); err != nil {
+	if err := t.DB.Transaction(destinyUserID, amount, "deposit"); err != nil {
 		return nil, err
 	}
 
@@ -186,13 +175,13 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, transferRequest *d.Transf
 		Amount:      amount,
 		Type:        "transfer",
 		Category:    "debit",
-		Description: "User transfer to " + transferRequest.To,
+		Description: "User transfer to " + userTo,
 	}); err != nil {
 		return nil, err
 	}
 
 	if err := t.DB.Insert(&r.Transaction{
-		AccountID:   userTo,
+		AccountID:   destinyUserID,
 		Amount:      amount,
 		Type:        "transfer",
 		Category:    "credit",

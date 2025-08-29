@@ -55,7 +55,7 @@ func (p *TransactionWorkerPool) worker(id int) {
 			)
 
 			// simulação de "demora" p/ visualizar a fila
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 
 			var err error
 			switch job.Type {
@@ -76,14 +76,13 @@ func (p *TransactionWorkerPool) worker(id int) {
 					"account", job.Account.String(),
 					"error", err,
 				)
-			} else {
-				sugar.Infow("Job concluído",
-					"worker_id", id,
-					"job_type", job.Type,
-					"account", job.Account.String(),
-					"status", status,
-				)
 			}
+			sugar.Infow("Job concluído",
+				"worker_id", id,
+				"job_type", job.Type,
+				"account", job.Account.String(),
+				"status", status,
+			)
 
 			if job.CallbackURL != "" {
 				result := JobResult{
