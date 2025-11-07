@@ -34,3 +34,13 @@ Thumbs.db
 coverage
 
 *.pem
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+
+# AWS keys, envs, etc.
+*.pem
+.env
