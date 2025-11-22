@@ -8,6 +8,7 @@ import (
 	"financial-system-pro/repositories"
 	"financial-system-pro/services"
 	"financial-system-pro/workers"
+
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 )
@@ -91,10 +92,10 @@ func StartServer(lc fx.Lifecycle, app *fiber.App, userService *services.NewUserS
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			fmt.Println("Starting Fiber server on :3000")
-			
+
 			// Registrar rotas no Fiber
 			registerFiberRoutes(app, userService, authService, transactionService, tronService)
-			
+
 			go app.Listen(":3000")
 			return nil
 		},
@@ -112,7 +113,7 @@ func registerFiberRoutes(app *fiber.App, userService *services.NewUserService, a
 		c.Set("Content-Type", "application/json")
 		return c.Status(200).JSON(fiber.Map{"status": "ok"})
 	})
-	
+
 	app.Get("/ready", func(c *fiber.Ctx) error {
 		c.Set("Content-Type", "application/json")
 		return c.Status(200).JSON(fiber.Map{"ready": true})

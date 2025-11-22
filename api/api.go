@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"financial-system-pro/internal/container"
 	"fmt"
 
@@ -16,8 +17,8 @@ func Start() {
 	// Cria a aplicação com fx
 	app := container.New()
 
-	// Inicia o fx (vai executar todos os Provide e Invoke)
-	err := app.Start(nil)
+	// Inicia o fx com um context válido
+	err := app.Start(context.Background())
 	if err != nil {
 		fmt.Printf("Error starting application: %v\n", err)
 		return
@@ -27,5 +28,5 @@ func Start() {
 	<-make(chan struct{})
 
 	// Para a aplicação
-	app.Stop(nil)
+	app.Stop(context.Background())
 }

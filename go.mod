@@ -11,6 +11,7 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/swaggo/fiber-swagger v1.3.0
 	github.com/swaggo/swag v1.16.6
+	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.77.0
 	gorm.io/datatypes v1.2.6
@@ -51,7 +52,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.65.0 // indirect
 	go.uber.org/dig v1.19.0 // indirect
-	go.uber.org/fx v1.24.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/mod v0.28.0 // indirect
