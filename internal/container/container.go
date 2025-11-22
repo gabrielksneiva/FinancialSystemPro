@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"financial-system-pro/internal/logger"
 	"financial-system-pro/internal/validator"
@@ -144,9 +145,13 @@ func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, userService *s
 			}
 
 			// Iniciar workers de fila se disponível
+			// TODO: Iniciar workers quando QueueManager conectar com sucesso
 			if qm != nil {
+				// Aguardar um pouco para QueueManager conectar
+				time.Sleep(5 * time.Second)
 				if err := qm.StartWorkers(ctx); err != nil {
-					lg.Error("failed to start queue workers", zap.Error(err))
+					lg.Warn("failed to start queue workers", zap.Error(err))
+					// Não quebra a app
 				}
 			}
 
