@@ -37,7 +37,7 @@ func (h *NewHandler) HealthCheckFull(ctx *fiber.Ctx) error {
 		status.Status = "degraded"
 	} else {
 		// Tentar um query leve no banco
-		_, err := h.userService.DB.FindUserByField("id", "00000000-0000-0000-0000-000000000000")
+		_, err := h.userService.Database.FindUserByField("id", "00000000-0000-0000-0000-000000000000")
 		if err != nil && err.Error() != "record not found" {
 			dbStatus = "down"
 			status.Status = "degraded"
