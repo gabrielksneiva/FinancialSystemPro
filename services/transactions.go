@@ -3,7 +3,6 @@ package services
 import (
 	"financial-system-pro/domain"
 	r "financial-system-pro/repositories"
-	"financial-system-pro/utils"
 	w "financial-system-pro/workers"
 	"fmt"
 
@@ -285,9 +284,25 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 		return nil, err
 	}
 
-	// Validar endereço TRON
-	if !t.TronService.ValidateAddress(tronAddress) {
-		return nil, fmt.Errorf("invalid TRON address: %s", tronAddress)
+	// Se não foi especificado endereço de destino, usar a wallet automática do usuário
+	destinationAddress := tronAddress
+	if destinationAddress == "" {
+		// Buscar wallet automática do usuário
+		walletInfo, err := t.DB.GetWalletInfo(uid)
+		if err != nil {
+			t.Logger.Error("user has no auto-generated TRON wallet", zap.String("user_id", uid.String()), zap.Error(err))
+			return nil, fmt.Errorf("TRON wallet not found. Please contact support to generate your wallet")
+		}
+		destinationAddress = walletInfo.TronAddress
+		t.Logger.Info("using user's auto-generated wallet",
+			zap.String("user_id", uid.String()),
+			zap.String("wallet_address", destinationAddress),
+		)
+	} else {
+		// Validar endereço TRON manualmente especificado
+		if !t.TronService.ValidateAddress(destinationAddress) {
+			return nil, fmt.Errorf("invalid TRON address: %s", destinationAddress)
+		}
 	}
 
 	// Verificar balance disponível
@@ -301,49 +316,38 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 		return nil, fmt.Errorf("insufficient balance: have %s, need %s", balance.String(), amount.String())
 	}
 
-	// Verificar se usuário tem carteira TRON registrada
-	walletInfo, err := t.DB.GetWalletInfo(uid)
-	if err != nil {
-		t.Logger.Error("user has no TRON wallet registered", zap.String("user_id", uid.String()), zap.Error(err))
-		return nil, fmt.Errorf("TRON wallet not configured. Please setup your wallet first")
-	}
-
-	// Descriptografar private key
-	privKey, err := utils.DecryptPrivateKey(walletInfo.EncryptedPrivKey)
-	if err != nil {
-		t.Logger.Error("error decrypting private key", zap.String("user_id", uid.String()), zap.Error(err))
-		return nil, fmt.Errorf("error decrypting wallet: %v", err)
-	}
+	// TODO: Para fase 2, implementar armazenamento seguro de private key e envio real de TX
+	// Por enquanto, apenas registramos o saque pendente
+	// Em produção, aqui seria:
+	// 1. Descriptografar private key
+	// 2. Enviar transação TRON
+	// 3. Armazenar hash no BD
 
 	// Converter amount de decimal para SUN (1 TRX = 1.000.000 SUN)
 	amountInSun := amount.Mul(decimal.NewFromInt(1000000)).BigInt().Int64()
 
-	// Enviar transação TRON
-	txHash, err := t.TronService.SendTransaction(walletInfo.TronAddress, tronAddress, amountInSun, privKey)
-	if err != nil {
-		t.Logger.Error("error sending TRON transaction",
-			zap.String("user_id", uid.String()),
-			zap.String("to_address", tronAddress),
-			zap.Error(err))
-		return nil, fmt.Errorf("error sending transaction: %v", err)
-	}
+	t.Logger.Info("TRON withdraw request received",
+		zap.String("user_id", uid.String()),
+		zap.String("destination", destinationAddress),
+		zap.String("amount_sun", fmt.Sprintf("%d", amountInSun)),
+	)
 
-	// Debitar do balance interno
+	// Debitar do balance interno imediatamente
 	err = t.DB.Transaction(uid, amount, "withdraw")
 	if err != nil {
 		t.Logger.Error("withdraw transaction failed", zap.String("account_id", uid.String()), zap.Error(err))
 		return nil, err
 	}
 
-	// Criar registro de transação com hash TRON
-	status := "pending"
+	// Criar registro de transação com hash TRON (será preenchido após envio real)
+	status := "pending_broadcast" // Pendente de broadcast para blockchain
 	txRecord := &r.Transaction{
 		AccountID:    uid,
 		Amount:       amount,
 		Type:         "withdraw",
 		Category:     "debit",
-		Description:  fmt.Sprintf("TRON withdraw to %s", tronAddress),
-		TronTxHash:   &txHash,
+		Description:  fmt.Sprintf("TRON withdraw to %s", destinationAddress),
+		TronTxHash:   nil, // Será preenchido após envio
 		TronTxStatus: &status,
 	}
 
@@ -353,22 +357,22 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 		return nil, err
 	}
 
-	t.Logger.Info("TRON withdraw transaction submitted",
+	t.Logger.Info("TRON withdraw registered",
 		zap.String("user_id", uid.String()),
 		zap.String("amount", amount.String()),
-		zap.String("to_address", tronAddress),
-		zap.String("tx_hash", txHash),
+		zap.String("to_address", destinationAddress),
+		zap.String("tx_id", txRecord.ID.String()),
 	)
 
 	return &ServiceResponse{
 		StatusCode: fiber.StatusAccepted,
 		Body: fiber.Map{
-			"message":     "Withdrawal transaction submitted to TRON blockchain",
-			"tx_hash":     txHash,
+			"message":     "Withdrawal registered and pending TRON blockchain broadcast",
+			"tx_id":       txRecord.ID.String(),
 			"amount":      amount.String(),
-			"to_address":  tronAddress,
-			"status":      "pending",
-			"description": "Transaction is pending TRON blockchain confirmation",
+			"to_address":  destinationAddress,
+			"status":      "pending_broadcast",
+			"description": "Your withdrawal will be broadcast to TRON blockchain shortly",
 		},
 	}, nil
 }
