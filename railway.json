@@ -5,6 +5,9 @@
   },
   "deploy": {
     "startCommand": "./main",
-    "healthcheckPath": "/health"
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyMaxRetries": 5,
+    "restartPolicyWindowMs": 60000
   }
 }

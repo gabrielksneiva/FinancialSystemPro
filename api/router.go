@@ -15,10 +15,12 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 
 	// Health check endpoints (sem autenticação, sem dependência de DB)
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok", "timestamp": time.Now()})
+		c.Set("Content-Type", "application/json")
+		return c.Status(200).JSON(fiber.Map{"status": "ok", "timestamp": time.Now().Unix()})
 	})
 	app.Get("/ready", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"ready": true, "timestamp": time.Now()})
+		c.Set("Content-Type", "application/json")
+		return c.Status(200).JSON(fiber.Map{"ready": true, "timestamp": time.Now().Unix()})
 	})
 
 	app.Get("/docs", func(c *fiber.Ctx) error {
