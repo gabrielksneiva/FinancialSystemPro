@@ -6,6 +6,7 @@ import (
 	"financial-system-pro/workers"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
@@ -53,6 +54,7 @@ func Start() {
 		db := repositories.ConnectDatabase(connStr)
 		if db != nil {
 			database := &repositories.NewDatabase{DB: db}
+			// Usar ponteiros para modificar as variáveis do escopo externo
 			userService = &services.NewUserService{Database: database}
 			authService = &services.NewAuthService{Database: database}
 
@@ -63,6 +65,14 @@ func Start() {
 			fmt.Println("Warning: Could not connect to database, some features may be unavailable")
 		}
 	}()
+
+	// Aguardar um pouco para o banco conectar (máximo 5 segundos)
+	for i := 0; i < 50; i++ {
+		if userService != nil && authService != nil && trasactionService != nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	// Router usará os services (que podem estar nil inicialmente)
 	router(app, userService, authService, trasactionService, tronService)
