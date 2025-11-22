@@ -37,12 +37,24 @@ type TransactionPayload struct {
 
 // NewQueueManager cria um novo gerenciador de fila com retry para serverless
 func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error) {
+	// Log the configuration
+	logger.Info("[REDIS DEBUG] initializing redis queue manager",
+		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(redisURL))),
+		zap.String("redis_url", redisURL))
+
 	// Parse Redis URL
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
-		logger.Error("invalid redis url", zap.Error(err))
+		logger.Error("[REDIS DEBUG] failed to parse redis url",
+			zap.Error(err),
+			zap.String("redis_url", redisURL))
 		return nil, err
 	}
+
+	logger.Info("[REDIS DEBUG] redis url parsed successfully",
+		zap.String("addr", opt.Addr),
+		zap.String("username", opt.Username),
+		zap.Bool("has_password", opt.Password != ""))
 
 	// Retry com backoff exponencial para serverless
 	maxRetries := 5
@@ -54,14 +66,21 @@ func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error)
 
 		// Test connection
 		if err := client.Ping(); err == nil {
-			logger.Info("connected to redis queue", zap.String("addr", opt.Addr))
+			logger.Info("[REDIS DEBUG] successfully connected to redis queue",
+				zap.String("addr", opt.Addr),
+				zap.Int("attempt", attempt))
 			break
 		}
 
-		logger.Warn(fmt.Sprintf("attempt %d/%d failed to connect to redis", attempt, maxRetries), zap.Error(err))
+		logger.Warn(fmt.Sprintf("[REDIS DEBUG] attempt %d/%d failed to connect to redis", attempt, maxRetries),
+			zap.Error(err),
+			zap.String("addr", opt.Addr))
 
 		if attempt < maxRetries {
-			logger.Info(fmt.Sprintf("retrying in %v (serverless redis may be waking up)...", retryDelay))
+			logger.Info(fmt.Sprintf("[REDIS DEBUG] retrying in %v (serverless redis may be waking up)...", retryDelay),
+				zap.String("addr", opt.Addr),
+				zap.Int("attempt", attempt),
+				zap.Int("max_retries", maxRetries))
 			time.Sleep(retryDelay)
 			retryDelay *= 2 // exponential backoff
 		}

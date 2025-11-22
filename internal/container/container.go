@@ -184,17 +184,23 @@ func ProvideRegisterRoutes() RegisterRoutesFunc {
 
 // ProvideQueueManager fornece o gerenciador de fila Redis
 func ProvideQueueManager(cfg Config, lg *zap.Logger) (*workers.QueueManager, error) {
+	lg.Info("[REDIS DEBUG] ProvideQueueManager called",
+		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(cfg.RedisURL))),
+		zap.Bool("redis_url_empty", cfg.RedisURL == ""))
+
 	if cfg.RedisURL == "" {
-		lg.Warn("REDIS_URL not set, queue manager will not be initialized")
+		lg.Warn("[REDIS DEBUG] REDIS_URL environment variable not set, queue manager will not be initialized")
 		return nil, nil
 	}
 
+	lg.Info("[REDIS DEBUG] attempting to initialize queue manager with redis url")
 	qm, err := workers.NewQueueManager(cfg.RedisURL, lg)
 	if err != nil {
-		lg.Error("failed to initialize queue manager", zap.Error(err))
+		lg.Error("[REDIS DEBUG] failed to initialize queue manager", zap.Error(err))
 		return nil, err
 	}
 
+	lg.Info("[REDIS DEBUG] queue manager initialized successfully")
 	return qm, nil
 }
 
