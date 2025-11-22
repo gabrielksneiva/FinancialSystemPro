@@ -13,6 +13,8 @@ import (
 )
 
 func router(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, trasactionService *services.NewTransactionService, tronService *services.TronService, logger *zap.Logger, qm *workers.QueueManager) {
+	rateLimiter := NewRateLimiter(logger)
+
 	handler := &NewHandler{
 		userService:        userService,
 		authService:        authService,
@@ -20,6 +22,7 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 		tronService:        tronService,
 		queueManager:       qm,
 		logger:             logger,
+		rateLimiter:        rateLimiter,
 	}
 
 	// Health check endpoints (sem autenticação, sem dependência de DB)
@@ -69,8 +72,8 @@ func usersRoutes(app *fiber.App, handler *NewHandler) {
 
 func transactionsRoutes(app *fiber.App, handler *NewHandler) {
 	protectedPaths := app.Group("/api", VerifyJWTMiddleware())
-	protectedPaths.Post("/deposit", handler.Deposit)
-	protectedPaths.Post("/withdraw", handler.Withdraw)
-	protectedPaths.Post("/transfer", handler.Transfer)
+	protectedPaths.Post("/deposit", handler.rateLimiter.Middleware("deposit"), handler.Deposit)
+	protectedPaths.Post("/withdraw", handler.rateLimiter.Middleware("withdraw"), handler.Withdraw)
+	protectedPaths.Post("/transfer", handler.rateLimiter.Middleware("transfer"), handler.Transfer)
 	protectedPaths.Get("/balance", handler.Balance)
 }

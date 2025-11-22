@@ -21,6 +21,7 @@ type NewHandler struct {
 	tronService        *services.TronService
 	queueManager       *workers.QueueManager
 	logger             *zap.Logger
+	rateLimiter        *RateLimiter
 }
 
 // handleAppError responde com status code e mensagem de erro do AppError
