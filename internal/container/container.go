@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"financial-system-pro/domain"
 	"fmt"
 	"os"
 	"time"
@@ -69,13 +70,14 @@ func ProvideDatabaseConnection(cfg Config) (*repositories.NewDatabase, error) {
 }
 
 // ProvideUserService cria o serviço de usuários
-func ProvideUserService(database *repositories.NewDatabase, lg *zap.Logger) *services.NewUserService {
+func ProvideUserService(database *repositories.NewDatabase, lg *zap.Logger, walletManager domain.WalletManager) *services.NewUserService {
 	if database == nil {
 		return nil
 	}
 	return &services.NewUserService{
-		Database: database,
-		Logger:   lg,
+		Database:      database,
+		Logger:        lg,
+		WalletManager: walletManager,
 	}
 }
 
@@ -128,6 +130,11 @@ func ProvideLogger() (*zap.Logger, error) {
 // ProvideValidator cria o serviço de validação
 func ProvideValidator() *validator.ValidatorService {
 	return validator.New()
+}
+
+// ProvideWalletManager cria o gerenciador de carteiras TRON
+func ProvideWalletManager() domain.WalletManager {
+	return services.NewTronWalletManager()
 }
 
 // StartServer inicia o servidor Fiber e workers
@@ -220,6 +227,7 @@ func New() *fx.App {
 		fx.Provide(ProvideRegisterRoutes),
 		fx.Provide(ProvideApp),
 		fx.Provide(ProvideDatabaseConnection),
+		fx.Provide(ProvideWalletManager),
 		fx.Provide(ProvideUserService),
 		fx.Provide(ProvideAuthService),
 		fx.Provide(ProvideTransactionWorkerPool),

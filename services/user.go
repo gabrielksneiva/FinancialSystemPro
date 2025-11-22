@@ -10,8 +10,9 @@ import (
 )
 
 type NewUserService struct {
-	Database *repositories.NewDatabase
-	Logger   *zap.Logger
+	Database      *repositories.NewDatabase
+	Logger        *zap.Logger
+	WalletManager domain.WalletManager
 }
 
 func (s *NewUserService) CreateNewUser(userRequest *domain.UserRequest) *domain.AppError {
@@ -55,6 +56,33 @@ func (s *NewUserService) CreateNewUser(userRequest *domain.UserRequest) *domain.
 			zap.Error(err),
 		)
 		return domain.NewDatabaseError("user creation failed", nil)
+	}
+
+	// Gerar carteira TRON automaticamente
+	if s.WalletManager != nil {
+		wallet, err := s.WalletManager.GenerateWallet()
+		if err != nil {
+			s.Logger.Warn("error generating wallet, user created but without wallet",
+				zap.String("email", userRequest.Email),
+				zap.Error(err),
+			)
+		} else {
+			// Criptografar private key (por enquanto apenas armazenar o address)
+			errWallet := s.Database.SaveWalletInfo(parsedUser.ID, wallet.Address, "")
+			if errWallet != nil {
+				s.Logger.Warn("error saving wallet info",
+					zap.String("email", userRequest.Email),
+					zap.String("user_id", parsedUser.ID.String()),
+					zap.Error(errWallet),
+				)
+			} else {
+				s.Logger.Info("wallet generated and saved",
+					zap.String("email", userRequest.Email),
+					zap.String("user_id", parsedUser.ID.String()),
+					zap.String("wallet_address", wallet.Address),
+				)
+			}
+		}
 	}
 
 	s.Logger.Info("user created successfully",
