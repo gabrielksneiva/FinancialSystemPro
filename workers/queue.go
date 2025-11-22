@@ -36,7 +36,8 @@ type TransactionPayload struct {
 }
 
 // NewQueueManager cria um novo gerenciador de fila com retry para serverless
-func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error) {
+// Retorna nil se não conseguir conectar (graceful degradation)
+func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
 	// Log the configuration
 	logger.Info("[REDIS DEBUG] initializing redis queue manager",
 		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(redisURL))),
@@ -48,7 +49,7 @@ func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error)
 		logger.Error("[REDIS DEBUG] failed to parse redis url",
 			zap.Error(err),
 			zap.String("redis_url", redisURL))
-		return nil, err
+		return nil
 	}
 
 	logger.Info("[REDIS DEBUG] redis url parsed successfully",
@@ -90,9 +91,9 @@ func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error)
 
 	// Final test
 	if err := client.Ping(); err != nil {
-		logger.Error("failed to ping redis after retries", zap.Error(err))
+		logger.Warn("[REDIS DEBUG] failed to ping redis after retries, running without async queue", zap.Error(err))
 		client.Close()
-		return nil, err
+		return nil
 	}
 
 	qm := &QueueManager{
@@ -101,8 +102,8 @@ func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error)
 		redisURL: redisURL,
 	}
 
-	logger.Info("redis queue manager initialized successfully")
-	return qm, nil
+	logger.Info("[REDIS DEBUG] redis queue manager initialized successfully")
+	return qm
 }
 
 // StartWorkers inicia os workers para processar tarefas

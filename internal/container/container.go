@@ -183,25 +183,26 @@ func ProvideRegisterRoutes() RegisterRoutesFunc {
 }
 
 // ProvideQueueManager fornece o gerenciador de fila Redis
-func ProvideQueueManager(cfg Config, lg *zap.Logger) (*workers.QueueManager, error) {
+// Redis é OPCIONAL - se falhar, app continua sem async queue
+func ProvideQueueManager(cfg Config, lg *zap.Logger) *workers.QueueManager {
 	lg.Info("[REDIS DEBUG] ProvideQueueManager called",
 		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(cfg.RedisURL))),
 		zap.Bool("redis_url_empty", cfg.RedisURL == ""))
 
 	if cfg.RedisURL == "" {
-		lg.Warn("[REDIS DEBUG] REDIS_URL environment variable not set, queue manager will not be initialized")
-		return nil, nil
+		lg.Warn("[REDIS DEBUG] REDIS_URL environment variable not set, running without async queue")
+		return nil
 	}
 
 	lg.Info("[REDIS DEBUG] attempting to initialize queue manager with redis url")
-	qm, err := workers.NewQueueManager(cfg.RedisURL, lg)
-	if err != nil {
-		lg.Error("[REDIS DEBUG] failed to initialize queue manager", zap.Error(err))
-		return nil, err
+	qm := workers.NewQueueManager(cfg.RedisURL, lg)
+	if qm == nil {
+		lg.Warn("[REDIS DEBUG] queue manager is nil, running without async queue")
+		return nil
 	}
 
 	lg.Info("[REDIS DEBUG] queue manager initialized successfully")
-	return qm, nil
+	return qm
 }
 
 // New cria a aplicação com todas as dependências gerenciadas por fx
