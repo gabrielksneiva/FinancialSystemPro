@@ -2,29 +2,23 @@ package api
 
 import (
 	"context"
+	"financial-system-pro/domain"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
 
-// HealthStatus representa o status de cada componente
-type HealthStatus struct {
-	Status   string            `json:"status"` // "healthy" ou "degraded"
-	Uptime   int64             `json:"uptime_seconds"`
-	Services map[string]string `json:"services"` // "up" ou "down"
-}
-
 // HealthCheck verifica saúde de todos os componentes
 // @Summary      Health check completo
 // @Description  Verifica status de DB, Redis e Tron RPC
 // @Tags         System
 // @Produce      json
-// @Success      200  {object}  HealthStatus
-// @Success      503  {object}  HealthStatus
+// @Success      200  {object}  domain.HealthStatus
+// @Success      503  {object}  domain.HealthStatus
 // @Router       /health/full [get]
 func (h *NewHandler) HealthCheckFull(ctx *fiber.Ctx) error {
-	status := HealthStatus{
+	status := domain.HealthStatus{
 		Status:   "healthy",
 		Uptime:   int64(time.Since(startTime).Seconds()),
 		Services: make(map[string]string),
@@ -84,19 +78,19 @@ func (h *NewHandler) HealthCheckFull(ctx *fiber.Ctx) error {
 // @Description  Retorna 200 se app está pronto, 503 se não
 // @Tags         System
 // @Produce      json
-// @Success      200  {object}  fiber.Map
-// @Failure      503  {object}  fiber.Map
+// @Success      200  {object}  domain.ProbeResponse
+// @Failure      503  {object}  domain.ProbeResponse
 // @Router       /ready [get]
 func (h *NewHandler) ReadinessProbe(ctx *fiber.Ctx) error {
 	if h.userService == nil || h.transactionService == nil {
-		return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"ready":  false,
-			"reason": "database not ready",
+		return ctx.Status(fiber.StatusServiceUnavailable).JSON(domain.ProbeResponse{
+			Ready:  false,
+			Reason: "database not ready",
 		})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"ready": true,
+	return ctx.Status(fiber.StatusOK).JSON(domain.ProbeResponse{
+		Ready: true,
 	})
 }
 
@@ -105,10 +99,10 @@ func (h *NewHandler) ReadinessProbe(ctx *fiber.Ctx) error {
 // @Description  Retorna 200 se app está vivo (simples)
 // @Tags         System
 // @Produce      json
-// @Success      200  {object}  fiber.Map
+// @Success      200  {object}  domain.ProbeResponse
 // @Router       /alive [get]
 func (h *NewHandler) LivenessProbe(ctx *fiber.Ctx) error {
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"alive": true,
+	return ctx.Status(fiber.StatusOK).JSON(domain.ProbeResponse{
+		Alive: true,
 	})
 }

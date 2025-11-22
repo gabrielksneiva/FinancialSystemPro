@@ -1,6 +1,7 @@
 package api
 
 import (
+	"financial-system-pro/domain"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -63,7 +64,7 @@ func RecordRequestTime(duration time.Duration) {
 // @Description  Retorna estatísticas de uso e performance
 // @Tags         System
 // @Produce      json
-// @Success      200  {object}  map[string]interface{}
+// @Success      200  {object}  domain.MetricsResponse
 // @Router       /metrics [get]
 func GetMetrics(c *fiber.Ctx) error {
 	metrics.mu.RLock()
@@ -84,25 +85,41 @@ func GetMetrics(c *fiber.Ctx) error {
 		avgResponseTime = float64(totalTime) / float64(requests) / float64(time.Millisecond)
 	}
 
-	return c.JSON(fiber.Map{
-		"transactions": fiber.Map{
-			"deposits":  deposits,
-			"withdraws": withdraws,
-			"transfers": transfers,
-			"failures":  failures,
-			"total":     deposits + withdraws + transfers,
+	response := domain.MetricsResponse{
+		Transactions: struct {
+			Deposits  int64 `json:"deposits"`
+			Withdraws int64 `json:"withdraws"`
+			Transfers int64 `json:"transfers"`
+			Failures  int64 `json:"failures"`
+			Total     int64 `json:"total"`
+		}{
+			Deposits:  deposits,
+			Withdraws: withdraws,
+			Transfers: transfers,
+			Failures:  failures,
+			Total:     deposits + withdraws + transfers,
 		},
-		"api": fiber.Map{
-			"total_requests":       requests,
-			"avg_response_time_ms": avgResponseTime,
+		API: struct {
+			TotalRequests     int64   `json:"total_requests"`
+			AvgResponseTimeMs float64 `json:"avg_response_time_ms"`
+		}{
+			TotalRequests:     requests,
+			AvgResponseTimeMs: avgResponseTime,
 		},
-		"system": fiber.Map{
-			"uptime_seconds": int64(time.Since(startTime).Seconds()),
-			"memory_mb":      m.Alloc / 1024 / 1024,
-			"goroutines":     runtime.NumGoroutine(),
-			"gc_runs":        m.NumGC,
+		System: struct {
+			UptimeSeconds int64  `json:"uptime_seconds"`
+			MemoryMb      uint64 `json:"memory_mb"`
+			Goroutines    int    `json:"goroutines"`
+			GCRuns        uint32 `json:"gc_runs"`
+		}{
+			UptimeSeconds: int64(time.Since(startTime).Seconds()),
+			MemoryMb:      m.Alloc / 1024 / 1024,
+			Goroutines:    runtime.NumGoroutine(),
+			GCRuns:        m.NumGC,
 		},
-	})
+	}
+
+	return c.JSON(response)
 }
 
 // MetricsMiddleware coleta métricas de cada requisição

@@ -8,6 +8,17 @@ definitions:
     required:
     - amount
     type: object
+  domain.HealthStatus:
+    properties:
+      services:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
   domain.LoginRequest:
     properties:
       email:
@@ -17,6 +28,49 @@ definitions:
     required:
     - email
     - password
+    type: object
+  domain.MetricsResponse:
+    properties:
+      api:
+        properties:
+          avg_response_time_ms:
+            type: number
+          total_requests:
+            type: integer
+        type: object
+      system:
+        properties:
+          gc_runs:
+            type: integer
+          goroutines:
+            type: integer
+          memory_mb:
+            type: integer
+          uptime_seconds:
+            type: integer
+        type: object
+      transactions:
+        properties:
+          deposits:
+            type: integer
+          failures:
+            type: integer
+          total:
+            type: integer
+          transfers:
+            type: integer
+          withdraws:
+            type: integer
+        type: object
+    type: object
+  domain.ProbeResponse:
+    properties:
+      alive:
+        type: boolean
+      ready:
+        type: boolean
+      reason:
+        type: string
     type: object
   domain.TransferRequest:
     properties:
@@ -29,6 +83,40 @@ definitions:
     required:
     - amount
     - to
+    type: object
+  domain.TronBalance:
+    properties:
+      address:
+        type: string
+      balance_sun:
+        type: integer
+      balance_trx:
+        type: string
+    type: object
+  domain.TronTransactionRequest:
+    properties:
+      amount:
+        type: integer
+      from_address:
+        type: string
+      private_key:
+        type: string
+      to_address:
+        type: string
+    required:
+    - amount
+    - from_address
+    - private_key
+    - to_address
+    type: object
+  domain.TronWallet:
+    properties:
+      address:
+        type: string
+      private_key:
+        type: string
+      public_key:
+        type: string
     type: object
   domain.UserRequest:
     properties:
@@ -55,6 +143,19 @@ info:
   title: FinancialSystemPro API
   version: "1.0"
 paths:
+  /alive:
+    get:
+      description: Retorna 200 se app está vivo (simples)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ProbeResponse'
+      summary: Liveness probe para Kubernetes/Railway
+      tags:
+      - System
   /api/balance:
     get:
       consumes:
@@ -186,6 +287,272 @@ paths:
       summary: Transfere valor para outra conta
       tags:
       - Transactions
+  /api/tron/balance:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint para obter saldo de uma carteira Tron Testnet
+      parameters:
+      - description: Endereço Tron (começa com T)
+        in: query
+        name: address
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.TronBalance'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém saldo de uma carteira Tron
+      tags:
+      - Tron
+  /api/tron/estimate-energy:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint para estimar o gasto de energia para uma transação Tron
+      parameters:
+      - description: from_address, to_address, amount
+        in: body
+        name: estimateRequest
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Estima energia necessária para transação
+      tags:
+      - Tron
+  /api/tron/network:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint para verificar se está conectado à rede Tron Testnet
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verifica conexão com rede Tron
+      tags:
+      - Tron
+  /api/tron/rpc-call:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint para chamar qualquer método RPC disponível no Tron
+      parameters:
+      - description: method, params
+        in: body
+        name: rpcCall
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Chama um método RPC customizado
+      tags:
+      - Tron
+  /api/tron/rpc-methods:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint que retorna os métodos RPC disponíveis para interagir
+        com Tron
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lista métodos RPC disponíveis
+      tags:
+      - Tron
+  /api/tron/rpc-status:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint para verificar status do RPC e gRPC
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém status das conexões RPC
+      tags:
+      - Tron
+  /api/tron/send:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint para enviar TRX na rede Tron Testnet
+      parameters:
+      - description: Dados da transação
+        in: body
+        name: txRequest
+        required: true
+        schema:
+          $ref: '#/definitions/domain.TronTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Envia uma transação Tron
+      tags:
+      - Tron
+  /api/tron/tx-status:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint para verificar o status de uma transação Tron
+      parameters:
+      - description: Hash da transação
+        in: query
+        name: tx_hash
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém status de uma transação Tron
+      tags:
+      - Tron
+  /api/tron/wallet:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint para criar uma nova carteira Tron Testnet
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.TronWallet'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cria uma nova carteira Tron
+      tags:
+      - Tron
   /api/users:
     post:
       consumes:
@@ -254,6 +621,53 @@ paths:
       summary: Retira valor da conta do usuário
       tags:
       - Transactions
+  /health/full:
+    get:
+      description: Verifica status de DB, Redis e Tron RPC
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.HealthStatus'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/domain.HealthStatus'
+      summary: Health check completo
+      tags:
+      - System
+  /metrics:
+    get:
+      description: Retorna estatísticas de uso e performance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.MetricsResponse'
+      summary: Métricas da aplicação
+      tags:
+      - System
+  /ready:
+    get:
+      description: Retorna 200 se app está pronto, 503 se não
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ProbeResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/domain.ProbeResponse'
+      summary: Readiness probe para Kubernetes/Railway
+      tags:
+      - System
 securityDefinitions:
   BearerAuth:
     description: Digite "Bearer {seu_token}"
