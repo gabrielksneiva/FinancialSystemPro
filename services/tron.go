@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"financial-system-pro/domain"
 	"fmt"
@@ -490,4 +491,29 @@ func (ts *TronService) RecordError(err error) {
 
 	ts.lastRPCError = err
 	ts.lastRPCErrorAt = time.Now()
+}
+
+// HealthCheck verifica se Tron RPC está respondendo
+func (ts *TronService) HealthCheck(ctx context.Context) error {
+	if ts.testnetRPC == "" {
+		return fmt.Errorf("tron rpc endpoint not configured")
+	}
+
+	// Criar um request leve para verificar conexão
+	req, err := http.NewRequestWithContext(ctx, "POST", ts.testnetRPC, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create health check request: %w", err)
+	}
+
+	resp, err := ts.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("tron rpc health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusBadRequest {
+		return fmt.Errorf("tron rpc returned status %d", resp.StatusCode)
+	}
+
+	return nil
 }

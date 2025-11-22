@@ -111,6 +111,14 @@ func (qm *QueueManager) connectWithRetry() {
 	qm.logger.Warn("[REDIS DEBUG] failed to connect to redis after all retries, running without async queue")
 }
 
+// IsConnected verifica se o QueueManager está conectado ao Redis
+func (qm *QueueManager) IsConnected() bool {
+	if qm == nil || qm.client == nil {
+		return false
+	}
+	return qm.client.Ping() == nil
+}
+
 // StartWorkers inicia os workers para processar tarefas
 func (qm *QueueManager) StartWorkers(ctx context.Context) error {
 	opt, err := redis.ParseURL(qm.redisURL)

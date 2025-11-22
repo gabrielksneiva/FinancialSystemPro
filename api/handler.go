@@ -11,6 +11,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// startTime registra quando a aplicação iniciou
+var startTime = time.Now()
+
 type NewHandler struct {
 	userService        *services.NewUserService
 	authService        *services.NewAuthService

@@ -27,10 +27,9 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 		c.Set("Content-Type", "application/json")
 		return c.Status(200).JSON(fiber.Map{"status": "ok", "timestamp": time.Now().Unix()})
 	})
-	app.Get("/ready", func(c *fiber.Ctx) error {
-		c.Set("Content-Type", "application/json")
-		return c.Status(200).JSON(fiber.Map{"ready": true, "timestamp": time.Now().Unix()})
-	})
+	app.Get("/ready", handler.ReadinessProbe)
+	app.Get("/alive", handler.LivenessProbe)
+	app.Get("/health/full", handler.HealthCheckFull)
 
 	app.Get("/docs", func(c *fiber.Ctx) error {
 		return c.Redirect("/docs/index.html", fiber.StatusFound)
