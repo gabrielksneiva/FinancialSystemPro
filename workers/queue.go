@@ -105,8 +105,16 @@ func (qm *QueueManager) StartWorkers(ctx context.Context) error {
 		return err
 	}
 
+	// Criar RedisClientOpt com todas as credenciais
+	redisOpt := asynq.RedisClientOpt{
+		Addr:     opt.Addr,
+		Username: opt.Username,
+		Password: opt.Password,
+		DB:       opt.DB,
+	}
+
 	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: opt.Addr},
+		redisOpt,
 		asynq.Config{
 			Concurrency: 10,
 			Queues: map[string]int{
@@ -295,7 +303,15 @@ func (qm *QueueManager) GetTaskInfo(ctx context.Context, queue, taskID string) (
 		return nil, err
 	}
 
-	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: opt.Addr})
+	// Criar RedisClientOpt com todas as credenciais
+	redisOpt := asynq.RedisClientOpt{
+		Addr:     opt.Addr,
+		Username: opt.Username,
+		Password: opt.Password,
+		DB:       opt.DB,
+	}
+
+	inspector := asynq.NewInspector(redisOpt)
 	defer inspector.Close()
 
 	info, err := inspector.GetTaskInfo(queue, taskID)
