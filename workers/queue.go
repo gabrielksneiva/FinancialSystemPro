@@ -36,10 +36,10 @@ type TransactionPayload struct {
 }
 
 // NewQueueManager cria um novo gerenciador de fila com retry para serverless
-// Retorna nil se não conseguir conectar (graceful degradation)
+// Inicia de forma NÃO-BLOQUEANTE (async)
 func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
 	// Log the configuration
-	logger.Info("[REDIS DEBUG] initializing redis queue manager",
+	logger.Info("[REDIS DEBUG] initializing redis queue manager (async)",
 		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(redisURL))),
 		zap.String("redis_url", redisURL))
 
@@ -57,44 +57,8 @@ func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
 		zap.String("username", opt.Username),
 		zap.Bool("has_password", opt.Password != ""))
 
-	// Retry com backoff exponencial para serverless
-	maxRetries := 10
-	var retryDelay time.Duration = 2 * time.Second
-	var client *asynq.Client
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		client = asynq.NewClient(asynq.RedisClientOpt{Addr: opt.Addr})
-
-		// Test connection
-		if err := client.Ping(); err == nil {
-			logger.Info("[REDIS DEBUG] successfully connected to redis queue",
-				zap.String("addr", opt.Addr),
-				zap.Int("attempt", attempt))
-			break
-		}
-
-		logger.Warn(fmt.Sprintf("[REDIS DEBUG] attempt %d/%d failed to connect to redis", attempt, maxRetries),
-			zap.Error(err),
-			zap.String("addr", opt.Addr))
-
-		if attempt < maxRetries {
-			logger.Info(fmt.Sprintf("[REDIS DEBUG] retrying in %v (serverless redis may be waking up)...", retryDelay),
-				zap.String("addr", opt.Addr),
-				zap.Int("attempt", attempt),
-				zap.Int("max_retries", maxRetries))
-			time.Sleep(retryDelay)
-			retryDelay *= 2 // exponential backoff
-		}
-
-		client.Close()
-	}
-
-	// Final test
-	if err := client.Ping(); err != nil {
-		logger.Warn("[REDIS DEBUG] failed to ping redis after retries, running without async queue", zap.Error(err))
-		client.Close()
-		return nil
-	}
+	// Cria client mas NÃO aguarda conexão (async)
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: opt.Addr})
 
 	qm := &QueueManager{
 		client:   client,
@@ -102,8 +66,36 @@ func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
 		redisURL: redisURL,
 	}
 
-	logger.Info("[REDIS DEBUG] redis queue manager initialized successfully")
+	// Tenta conectar em background com retry agressivo
+	go qm.connectWithRetry()
+
+	logger.Info("[REDIS DEBUG] queue manager created (will connect asynchronously)")
 	return qm
+}
+
+// connectWithRetry tenta conectar ao Redis em background
+func (qm *QueueManager) connectWithRetry() {
+	maxRetries := 20
+	var retryDelay time.Duration = 1 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if err := qm.client.Ping(); err == nil {
+			qm.logger.Info("[REDIS DEBUG] successfully connected to redis queue (async)",
+				zap.Int("attempt", attempt))
+			return
+		}
+
+		qm.logger.Warn(fmt.Sprintf("[REDIS DEBUG] attempt %d/%d failed to connect to redis", attempt, maxRetries),
+			zap.Error(nil))
+
+		if attempt < maxRetries {
+			qm.logger.Debug(fmt.Sprintf("[REDIS DEBUG] retrying in %v...", retryDelay))
+			time.Sleep(retryDelay)
+			retryDelay *= 2 // exponential backoff
+		}
+	}
+
+	qm.logger.Warn("[REDIS DEBUG] failed to connect to redis after all retries, running without async queue")
 }
 
 // StartWorkers inicia os workers para processar tarefas
