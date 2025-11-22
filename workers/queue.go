@@ -58,8 +58,8 @@ func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
 		zap.Bool("has_password", opt.Password != ""))
 
 	// Retry com backoff exponencial para serverless
-	maxRetries := 5
-	var retryDelay time.Duration = 1 * time.Second
+	maxRetries := 10
+	var retryDelay time.Duration = 2 * time.Second
 	var client *asynq.Client
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
