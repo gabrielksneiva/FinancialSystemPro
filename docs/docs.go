@@ -1030,6 +1030,18 @@ const docTemplate = `{
                 },
                 "callback_url": {
                     "type": "string"
+                },
+                "tron_address": {
+                    "description": "Para withdraw TRON",
+                    "type": "string"
+                },
+                "withdraw_type": {
+                    "description": "\"internal\" ou \"tron\"",
+                    "type": "string",
+                    "enum": [
+                        "internal",
+                        "tron"
+                    ]
                 }
             }
         }

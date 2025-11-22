@@ -134,6 +134,15 @@ definitions:
         type: string
       callback_url:
         type: string
+      tron_address:
+        description: Para withdraw TRON
+        type: string
+      withdraw_type:
+        description: '"internal" ou "tron"'
+        enum:
+        - internal
+        - tron
+        type: string
     required:
     - amount
     type: object
