@@ -4,10 +4,6 @@
     "builder": "dockerfile"
   },
   "deploy": {
-    "startCommand": "./main",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 30,
-    "restartPolicyMaxRetries": 5,
-    "restartPolicyWindowMs": 60000
+    "startCommand": "./main"
   }
 }
