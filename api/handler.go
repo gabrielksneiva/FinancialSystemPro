@@ -209,9 +209,28 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
-	resp, err := h.transactionService.Withdraw(ctx, amount, withdrawRequest.CallbackURL)
+	// Detectar tipo de withdraw (padrão: internal)
+	withdrawType := withdrawRequest.WithdrawType
+	if withdrawType == "" {
+		withdrawType = "internal"
+	}
+
+	var resp *services.ServiceResponse
+	if withdrawType == "tron" {
+		// Withdraw para TRON blockchain
+		resp, err = h.transactionService.WithdrawTron(ctx, amount, withdrawRequest.TronAddress, withdrawRequest.CallbackURL)
+	} else {
+		// Withdraw interno (padrão)
+		resp, err = h.transactionService.Withdraw(ctx, amount, withdrawRequest.CallbackURL)
+	}
+
 	if err != nil {
+		RecordFailure()
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	if resp.StatusCode == fiber.StatusOK || resp.StatusCode == fiber.StatusAccepted {
+		RecordWithdraw()
 	}
 
 	return ctx.Status(resp.StatusCode).JSON(resp.Body)

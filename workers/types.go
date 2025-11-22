@@ -10,9 +10,10 @@ import (
 type JobType string
 
 const (
-	JobDeposit  JobType = "deposit"
-	JobWithdraw JobType = "withdraw"
-	JobTransfer JobType = "transfer"
+	JobDeposit       JobType = "deposit"
+	JobWithdraw      JobType = "withdraw"
+	JobTransfer      JobType = "transfer"
+	JobTronTxConfirm JobType = "tron_tx_confirm" // Monitorar confirmação de TX TRON
 )
 
 type TransactionJob struct {
@@ -22,6 +23,18 @@ type TransactionJob struct {
 	ToEmail     string
 	CallbackURL string
 	JobID       uuid.UUID
+}
+
+// TronTxConfirmJob monitora o status de uma transação TRON
+type TronTxConfirmJob struct {
+	Type          JobType
+	UserID        uuid.UUID
+	TransactionID uuid.UUID
+	TronTxHash    string
+	CallbackURL   string
+	CheckInterval int // segundos entre verificações
+	MaxChecks     int // máximo de verificações antes de desistir
+	JobID         uuid.UUID
 }
 
 type TransactionWorkerPool struct {
