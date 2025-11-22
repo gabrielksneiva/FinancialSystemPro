@@ -16,6 +16,17 @@ type NewHandler struct {
 	tronService        *services.TronService
 }
 
+// checkDatabaseAvailable verifica se os serviços de banco estão disponíveis
+func (h *NewHandler) checkDatabaseAvailable(ctx *fiber.Ctx) error {
+	if h.userService == nil || h.authService == nil || h.transactionService == nil {
+		return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error":   "Database connection not yet established",
+			"message": "Please try again in a few moments",
+		})
+	}
+	return nil
+}
+
 // CreateUser godoc
 // @Summary      Cria um novo usuário
 // @Description  Endpoint para criar usuário
@@ -28,6 +39,10 @@ type NewHandler struct {
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/users [post]
 func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
+	if err := h.checkDatabaseAvailable(ctx); err != nil {
+		return err
+	}
+
 	var userRequest domain.UserRequest
 	err := isValid(ctx, &userRequest)
 	if err != nil {
@@ -54,6 +69,10 @@ func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/login [post]
 func (h *NewHandler) Login(ctx *fiber.Ctx) error {
+	if err := h.checkDatabaseAvailable(ctx); err != nil {
+		return err
+	}
+
 	var loginRequest domain.LoginRequest
 	err := isValid(ctx, &loginRequest)
 	if err != nil {
@@ -81,6 +100,10 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/deposit [post]
 func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
+	if err := h.checkDatabaseAvailable(ctx); err != nil {
+		return err
+	}
+
 	var depositRequest domain.DepositRequest
 	err := isValid(ctx, &depositRequest)
 	if err != nil {
