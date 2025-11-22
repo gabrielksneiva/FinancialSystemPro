@@ -127,23 +127,28 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 
 	var depositRequest domain.DepositRequest
 	if validErr := ValidateRequest(ctx, &depositRequest); validErr != nil {
+		RecordFailure()
 		return h.handleAppError(ctx, validErr)
 	}
 
 	amount, err := decimal.NewFromString(depositRequest.Amount)
 	if err != nil {
+		RecordFailure()
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid amount format"})
 	}
 
 	if amount.LessThanOrEqual(decimal.Zero) {
+		RecordFailure()
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
 	resp, err := h.transactionService.Deposit(ctx, amount, depositRequest.CallbackURL)
 	if err != nil {
+		RecordFailure()
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	RecordDeposit()
 	return ctx.Status(resp.StatusCode).JSON(resp.Body)
 }
 

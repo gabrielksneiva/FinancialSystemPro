@@ -42,7 +42,7 @@ func (cm *CacheManager) GetBalance(ctx context.Context, userID string) (decimal.
 	key := fmt.Sprintf("balance:%s", userID)
 
 	err := cm.breaker.Call(func() error {
-		val, err := cm.client.Get(ctx, key).Result()
+		_, err := cm.client.Get(ctx, key).Result()
 		if err == redis.Nil {
 			return nil // Cache miss é ok
 		}

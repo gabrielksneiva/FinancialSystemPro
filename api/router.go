@@ -33,6 +33,7 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 	app.Get("/ready", handler.ReadinessProbe)
 	app.Get("/alive", handler.LivenessProbe)
 	app.Get("/health/full", handler.HealthCheckFull)
+	app.Get("/metrics", GetMetrics)
 
 	app.Get("/docs", func(c *fiber.Ctx) error {
 		return c.Redirect("/docs/index.html", fiber.StatusFound)
