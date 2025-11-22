@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"financial-system-pro/repositories"
+
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -17,6 +21,7 @@ type QueueManager struct {
 	server   *asynq.Server
 	logger   *zap.Logger
 	redisURL string
+	database *repositories.NewDatabase
 }
 
 // Tipos de tarefas
@@ -37,7 +42,7 @@ type TransactionPayload struct {
 
 // NewQueueManager cria um novo gerenciador de fila com retry para serverless
 // Inicia de forma NÃO-BLOQUEANTE (async)
-func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
+func NewQueueManager(redisURL string, logger *zap.Logger, database *repositories.NewDatabase) *QueueManager {
 	// Log the configuration
 	logger.Info("[REDIS DEBUG] initializing redis queue manager (async)",
 		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(redisURL))),
@@ -72,6 +77,7 @@ func NewQueueManager(redisURL string, logger *zap.Logger) *QueueManager {
 		client:   client,
 		logger:   logger,
 		redisURL: redisURL,
+		database: database,
 	}
 
 	// Tenta conectar em background com retry agressivo
@@ -246,43 +252,211 @@ func (qm *QueueManager) EnqueueTransfer(ctx context.Context, userID, amount, toE
 
 // Handlers para processar tarefas
 func (qm *QueueManager) handleDeposit(ctx context.Context, t *asynq.Task) error {
+	if qm.database == nil {
+		qm.logger.Warn("database not available for deposit processing")
+		return fmt.Errorf("database not available")
+	}
+
 	var payload TransactionPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
 		qm.logger.Error("failed to unmarshal deposit payload", zap.Error(err))
 		return err
 	}
 
+	// Parse userID
+	userID, err := uuid.Parse(payload.UserID)
+	if err != nil {
+		qm.logger.Error("invalid user id format", zap.String("user_id", payload.UserID), zap.Error(err))
+		return fmt.Errorf("invalid user id format: %w", err)
+	}
+
+	// Validar amount
+	amount, err := decimal.NewFromString(payload.Amount)
+	if err != nil {
+		qm.logger.Error("invalid amount format", zap.String("amount", payload.Amount), zap.Error(err))
+		return fmt.Errorf("invalid amount format: %w", err)
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		qm.logger.Warn("invalid deposit amount", zap.String("user_id", payload.UserID), zap.Stringer("amount", amount))
+		return fmt.Errorf("deposit amount must be greater than zero")
+	}
+
+	// Executar depósito
 	qm.logger.Info("processing deposit",
 		zap.String("user_id", payload.UserID),
 		zap.String("amount", payload.Amount),
 	)
 
-	// TODO: Implementar lógica real de depósito
-	// Por enquanto, só logging
+	if err := qm.database.Transaction(userID, amount, "deposit"); err != nil {
+		qm.logger.Error("deposit transaction failed",
+			zap.String("user_id", payload.UserID),
+			zap.String("amount", payload.Amount),
+			zap.Error(err))
+		return fmt.Errorf("deposit transaction failed: %w", err)
+	}
+
+	// Registrar na tabela transactions
+	if err := qm.database.Insert(&repositories.Transaction{
+		AccountID:   userID,
+		Amount:      amount,
+		Type:        "deposit",
+		Category:    "credit",
+		Description: "Deposit to account",
+	}); err != nil {
+		qm.logger.Error("failed to insert deposit record",
+			zap.String("user_id", payload.UserID),
+			zap.Error(err))
+		return fmt.Errorf("failed to record deposit: %w", err)
+	}
+
+	qm.logger.Info("deposit completed successfully",
+		zap.String("user_id", payload.UserID),
+		zap.String("amount", payload.Amount),
+	)
+
 	return nil
 }
 
 func (qm *QueueManager) handleWithdraw(ctx context.Context, t *asynq.Task) error {
+	if qm.database == nil {
+		qm.logger.Warn("database not available for withdraw processing")
+		return fmt.Errorf("database not available")
+	}
+
 	var payload TransactionPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
 		qm.logger.Error("failed to unmarshal withdraw payload", zap.Error(err))
 		return err
 	}
 
+	// Parse userID
+	userID, err := uuid.Parse(payload.UserID)
+	if err != nil {
+		qm.logger.Error("invalid user id format", zap.String("user_id", payload.UserID), zap.Error(err))
+		return fmt.Errorf("invalid user id format: %w", err)
+	}
+
+	// Validar amount
+	amount, err := decimal.NewFromString(payload.Amount)
+	if err != nil {
+		qm.logger.Error("invalid amount format", zap.String("amount", payload.Amount), zap.Error(err))
+		return fmt.Errorf("invalid amount format: %w", err)
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		qm.logger.Warn("invalid withdraw amount", zap.String("user_id", payload.UserID), zap.Stringer("amount", amount))
+		return fmt.Errorf("withdraw amount must be greater than zero")
+	}
+
+	// Verificar saldo
+	balance, err := qm.database.Balance(userID)
+	if err != nil {
+		qm.logger.Error("failed to check balance",
+			zap.String("user_id", payload.UserID),
+			zap.Error(err))
+		return fmt.Errorf("failed to check balance: %w", err)
+	}
+
+	if balance.LessThan(amount) {
+		qm.logger.Warn("insufficient balance",
+			zap.String("user_id", payload.UserID),
+			zap.Stringer("balance", balance),
+			zap.Stringer("requested", amount))
+		return fmt.Errorf("insufficient balance: have %s, need %s", balance, amount)
+	}
+
+	// Executar saque
 	qm.logger.Info("processing withdraw",
 		zap.String("user_id", payload.UserID),
 		zap.String("amount", payload.Amount),
 	)
 
-	// TODO: Implementar lógica real de saque
+	if err := qm.database.Transaction(userID, amount, "withdraw"); err != nil {
+		qm.logger.Error("withdraw transaction failed",
+			zap.String("user_id", payload.UserID),
+			zap.String("amount", payload.Amount),
+			zap.Error(err))
+		return fmt.Errorf("withdraw transaction failed: %w", err)
+	}
+
+	// Registrar na tabela transactions
+	if err := qm.database.Insert(&repositories.Transaction{
+		AccountID:   userID,
+		Amount:      amount,
+		Type:        "withdraw",
+		Category:    "debit",
+		Description: "Withdrawal from account",
+	}); err != nil {
+		qm.logger.Error("failed to insert withdraw record",
+			zap.String("user_id", payload.UserID),
+			zap.Error(err))
+		return fmt.Errorf("failed to record withdrawal: %w", err)
+	}
+
+	qm.logger.Info("withdraw completed successfully",
+		zap.String("user_id", payload.UserID),
+		zap.String("amount", payload.Amount),
+	)
+
 	return nil
 }
 
 func (qm *QueueManager) handleTransfer(ctx context.Context, t *asynq.Task) error {
+	if qm.database == nil {
+		qm.logger.Warn("database not available for transfer processing")
+		return fmt.Errorf("database not available")
+	}
+
 	var payload TransactionPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
 		qm.logger.Error("failed to unmarshal transfer payload", zap.Error(err))
 		return err
+	}
+
+	// Parse userID
+	userID, err := uuid.Parse(payload.UserID)
+	if err != nil {
+		qm.logger.Error("invalid user id format", zap.String("user_id", payload.UserID), zap.Error(err))
+		return fmt.Errorf("invalid user id format: %w", err)
+	}
+
+	// Validar amount
+	amount, err := decimal.NewFromString(payload.Amount)
+	if err != nil {
+		qm.logger.Error("invalid amount format", zap.String("amount", payload.Amount), zap.Error(err))
+		return fmt.Errorf("invalid amount format: %w", err)
+	}
+
+	if amount.LessThanOrEqual(decimal.Zero) {
+		qm.logger.Warn("invalid transfer amount", zap.String("user_id", payload.UserID), zap.Stringer("amount", amount))
+		return fmt.Errorf("transfer amount must be greater than zero")
+	}
+
+	// Verificar saldo do remetente
+	balance, err := qm.database.Balance(userID)
+	if err != nil {
+		qm.logger.Error("failed to check sender balance",
+			zap.String("user_id", payload.UserID),
+			zap.Error(err))
+		return fmt.Errorf("failed to check sender balance: %w", err)
+	}
+
+	if balance.LessThan(amount) {
+		qm.logger.Warn("insufficient balance for transfer",
+			zap.String("user_id", payload.UserID),
+			zap.Stringer("balance", balance),
+			zap.Stringer("requested", amount))
+		return fmt.Errorf("insufficient balance: have %s, need %s", balance, amount)
+	}
+
+	// Encontrar usuário destinatário
+	recipient, err := qm.database.FindUserByField("email", payload.ToEmail)
+	if err != nil {
+		qm.logger.Warn("recipient not found",
+			zap.String("to_email", payload.ToEmail),
+			zap.Error(err))
+		return fmt.Errorf("recipient not found: %w", err)
 	}
 
 	qm.logger.Info("processing transfer",
@@ -291,7 +465,56 @@ func (qm *QueueManager) handleTransfer(ctx context.Context, t *asynq.Task) error
 		zap.String("amount", payload.Amount),
 	)
 
-	// TODO: Implementar lógica real de transferência
+	// Débito do remetente
+	if err := qm.database.Transaction(userID, amount, "withdraw"); err != nil {
+		qm.logger.Error("transfer withdraw failed",
+			zap.String("from_id", payload.UserID),
+			zap.Error(err))
+		return fmt.Errorf("transfer withdraw failed: %w", err)
+	}
+
+	// Crédito do destinatário
+	if err := qm.database.Transaction(recipient.ID, amount, "deposit"); err != nil {
+		qm.logger.Error("transfer deposit failed",
+			zap.String("to_id", recipient.ID.String()),
+			zap.Error(err))
+		return fmt.Errorf("transfer deposit failed: %w", err)
+	}
+
+	// Registrar transferência (débito)
+	if err := qm.database.Insert(&repositories.Transaction{
+		AccountID:   userID,
+		Amount:      amount,
+		Type:        "transfer",
+		Category:    "debit",
+		Description: "Transfer to " + payload.ToEmail,
+	}); err != nil {
+		qm.logger.Error("failed to insert transfer debit record",
+			zap.String("user_id", payload.UserID),
+			zap.Error(err))
+		return fmt.Errorf("failed to record transfer: %w", err)
+	}
+
+	// Registrar transferência (crédito)
+	if err := qm.database.Insert(&repositories.Transaction{
+		AccountID:   recipient.ID,
+		Amount:      amount,
+		Type:        "transfer",
+		Category:    "credit",
+		Description: "Transfer from " + payload.UserID,
+	}); err != nil {
+		qm.logger.Error("failed to insert transfer credit record",
+			zap.String("user_id", recipient.ID.String()),
+			zap.Error(err))
+		return fmt.Errorf("failed to record transfer receipt: %w", err)
+	}
+
+	qm.logger.Info("transfer completed successfully",
+		zap.String("from_user", payload.UserID),
+		zap.String("to_user", recipient.ID.String()),
+		zap.String("amount", payload.Amount),
+	)
+
 	return nil
 }
 

@@ -189,7 +189,7 @@ func ProvideRegisterRoutes() RegisterRoutesFunc {
 
 // ProvideQueueManager fornece o gerenciador de fila Redis
 // Redis é OPCIONAL - se falhar, app continua sem async queue
-func ProvideQueueManager(cfg Config, lg *zap.Logger) *workers.QueueManager {
+func ProvideQueueManager(cfg Config, lg *zap.Logger, database *repositories.NewDatabase) *workers.QueueManager {
 	lg.Info("[REDIS DEBUG] ProvideQueueManager called",
 		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(cfg.RedisURL))),
 		zap.Bool("redis_url_empty", cfg.RedisURL == ""))
@@ -200,7 +200,7 @@ func ProvideQueueManager(cfg Config, lg *zap.Logger) *workers.QueueManager {
 	}
 
 	lg.Info("[REDIS DEBUG] attempting to initialize queue manager with redis url")
-	qm := workers.NewQueueManager(cfg.RedisURL, lg)
+	qm := workers.NewQueueManager(cfg.RedisURL, lg, database)
 	if qm == nil {
 		lg.Warn("[REDIS DEBUG] queue manager is nil, running without async queue")
 		return nil
