@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	"financial-system-pro/internal/container/logger"
 	"financial-system-pro/repositories"
 	"financial-system-pro/services"
 	"financial-system-pro/workers"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 // Config agrupa todas as configurações
@@ -87,6 +89,11 @@ func ProvideApp() *fiber.App {
 	return fiber.New()
 }
 
+// ProvideLogger cria o logger Zap centralizado
+func ProvideLogger() (*zap.Logger, error) {
+	return logger.ProvideLogger()
+}
+
 // StartServer inicia o servidor Fiber
 func StartServer(lc fx.Lifecycle, app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService) {
 	lc.Append(fx.Hook{
@@ -124,6 +131,7 @@ func registerFiberRoutes(app *fiber.App, userService *services.NewUserService, a
 func New() *fx.App {
 	return fx.New(
 		fx.Provide(LoadConfig),
+		fx.Provide(ProvideLogger),
 		fx.Provide(ProvideApp),
 		fx.Provide(ProvideDatabaseConnection),
 		fx.Provide(ProvideUserService),
