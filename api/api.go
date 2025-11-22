@@ -31,29 +31,43 @@ func Start() {
 		dbPort := os.Getenv("DB_PORT")
 
 		if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
-			fmt.Printf("Warning: Missing DB environment variables. DB_HOST=%s, DB_USER=%s, DB_NAME=%s, DB_PORT=%s\n", dbHost, dbUser, dbName, dbPort)
-			if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
-				fmt.Println("Error: Required database environment variables are missing.")
-				os.Exit(1)
-			}
-			fmt.Println("Info: Running in Railway environment - will retry connection with available vars.")
+			fmt.Printf("Warning: Missing DB environment variables.\n")
+			fmt.Println("Info: Will attempt to connect later or use in-memory mode")
 		}
 		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", dbHost, dbUser, dbPassword, dbName, dbPort)
 	}
 
-	db := repositories.ConnectDatabase(connStr)
-
-	database := &repositories.NewDatabase{DB: db}
-	userService := &services.NewUserService{Database: database}
-	authService := &services.NewAuthService{Database: database}
-	tronService := services.NewTronService()
-
-	workerPool := workers.NewTransactionWorkerPool(database, 5, 100)
-	trasactionService := &services.NewTransactionService{DB: database, W: workerPool}
-
+	// Inicia o app e o servidor HTTP ANTES de tentar conectar ao banco
 	app := fiber.New()
 
+	// Serviços que não dependem de banco
+	tronService := services.NewTronService()
+
+	// Services e database são inicializados em background
+	var userService *services.NewUserService
+	var authService *services.NewAuthService
+	var trasactionService *services.NewTransactionService
+
+	// Tenta conectar ao banco em background
+	go func() {
+		db := repositories.ConnectDatabase(connStr)
+		if db != nil {
+			database := &repositories.NewDatabase{DB: db}
+			userService = &services.NewUserService{Database: database}
+			authService = &services.NewAuthService{Database: database}
+
+			workerPool := workers.NewTransactionWorkerPool(database, 5, 100)
+			trasactionService = &services.NewTransactionService{DB: database, W: workerPool}
+			fmt.Println("Database connected successfully")
+		} else {
+			fmt.Println("Warning: Could not connect to database, some features may be unavailable")
+		}
+	}()
+
+	// Router usará os services (que podem estar nil inicialmente)
 	router(app, userService, authService, trasactionService, tronService)
 
+	// Inicia o servidor - isto vai servir /health mesmo que o banco esteja indisponível
+	fmt.Println("Starting server on :3000")
 	app.Listen(":3000")
 }
