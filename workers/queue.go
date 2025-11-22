@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -34,7 +35,7 @@ type TransactionPayload struct {
 	CallbackURL string `json:"callback_url,omitempty"`
 }
 
-// NewQueueManager cria um novo gerenciador de fila
+// NewQueueManager cria um novo gerenciador de fila com retry para serverless
 func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error) {
 	// Parse Redis URL
 	opt, err := redis.ParseURL(redisURL)
@@ -43,8 +44,37 @@ func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error)
 		return nil, err
 	}
 
-	// Create Asynq client
-	client := asynq.NewClient(asynq.RedisClientOpt{Addr: opt.Addr})
+	// Retry com backoff exponencial para serverless
+	maxRetries := 5
+	var retryDelay time.Duration = 1 * time.Second
+	var client *asynq.Client
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		client = asynq.NewClient(asynq.RedisClientOpt{Addr: opt.Addr})
+
+		// Test connection
+		if err := client.Ping(); err == nil {
+			logger.Info("connected to redis queue", zap.String("addr", opt.Addr))
+			break
+		}
+
+		logger.Warn(fmt.Sprintf("attempt %d/%d failed to connect to redis", attempt, maxRetries), zap.Error(err))
+
+		if attempt < maxRetries {
+			logger.Info(fmt.Sprintf("retrying in %v (serverless redis may be waking up)...", retryDelay))
+			time.Sleep(retryDelay)
+			retryDelay *= 2 // exponential backoff
+		}
+
+		client.Close()
+	}
+
+	// Final test
+	if err := client.Ping(); err != nil {
+		logger.Error("failed to ping redis after retries", zap.Error(err))
+		client.Close()
+		return nil, err
+	}
 
 	qm := &QueueManager{
 		client:   client,
@@ -52,13 +82,7 @@ func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error)
 		redisURL: redisURL,
 	}
 
-	// Test connection
-	if err := client.Ping(); err != nil {
-		logger.Error("failed to ping redis", zap.Error(err))
-		return nil, err
-	}
-
-	logger.Info("connected to redis queue", zap.String("addr", opt.Addr))
+	logger.Info("redis queue manager initialized successfully")
 	return qm, nil
 }
 
