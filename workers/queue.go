@@ -1,0 +1,271 @@
+package workers
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/hibiken/asynq"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+)
+
+// Queue manager para Asynq
+type QueueManager struct {
+	client   *asynq.Client
+	server   *asynq.Server
+	logger   *zap.Logger
+	redisURL string
+}
+
+// Tipos de tarefas
+const (
+	TypeDeposit  = "transaction:deposit"
+	TypeWithdraw = "transaction:withdraw"
+	TypeTransfer = "transaction:transfer"
+)
+
+// Payload base para todas as transações
+type TransactionPayload struct {
+	UserID      string `json:"user_id"`
+	Amount      string `json:"amount"`
+	ToUserID    string `json:"to_user_id,omitempty"`
+	ToEmail     string `json:"to_email,omitempty"`
+	CallbackURL string `json:"callback_url,omitempty"`
+}
+
+// NewQueueManager cria um novo gerenciador de fila
+func NewQueueManager(redisURL string, logger *zap.Logger) (*QueueManager, error) {
+	// Parse Redis URL
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		logger.Error("invalid redis url", zap.Error(err))
+		return nil, err
+	}
+
+	// Create Asynq client
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: opt.Addr})
+
+	qm := &QueueManager{
+		client:   client,
+		logger:   logger,
+		redisURL: redisURL,
+	}
+
+	// Test connection
+	if err := client.Ping(); err != nil {
+		logger.Error("failed to ping redis", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Info("connected to redis queue", zap.String("addr", opt.Addr))
+	return qm, nil
+}
+
+// StartWorkers inicia os workers para processar tarefas
+func (qm *QueueManager) StartWorkers(ctx context.Context) error {
+	opt, err := redis.ParseURL(qm.redisURL)
+	if err != nil {
+		return err
+	}
+
+	srv := asynq.NewServer(
+		asynq.RedisClientOpt{Addr: opt.Addr},
+		asynq.Config{
+			Concurrency: 10,
+			Queues: map[string]int{
+				"default":      10,
+				"critical":     5,
+				"transactions": 10,
+			},
+			RetryDelayFunc: func(n int, e error, t *asynq.Task) time.Duration {
+				if n == 0 {
+					return 0
+				}
+				return time.Duration(n*n) * time.Minute
+			},
+		},
+	)
+
+	qm.server = srv
+
+	// Registrar handlers
+	mux := asynq.NewServeMux()
+	mux.HandleFunc(TypeDeposit, qm.handleDeposit)
+	mux.HandleFunc(TypeWithdraw, qm.handleWithdraw)
+	mux.HandleFunc(TypeTransfer, qm.handleTransfer)
+
+	qm.logger.Info("starting async workers", zap.Int("concurrency", 10))
+
+	go func() {
+		if err := srv.Run(mux); err != nil {
+			qm.logger.Error("failed to run server", zap.Error(err))
+		}
+	}()
+
+	return nil
+}
+
+// EnqueueDeposit enfileira uma tarefa de depósito
+func (qm *QueueManager) EnqueueDeposit(ctx context.Context, userID, amount, callbackURL string) (string, error) {
+	payload := TransactionPayload{
+		UserID:      userID,
+		Amount:      amount,
+		CallbackURL: callbackURL,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		qm.logger.Error("failed to marshal deposit payload", zap.Error(err))
+		return "", err
+	}
+
+	task := asynq.NewTask(TypeDeposit, data)
+	info, err := qm.client.EnqueueContext(ctx, task, asynq.Queue("transactions"), asynq.MaxRetry(3))
+	if err != nil {
+		qm.logger.Error("failed to enqueue deposit", zap.Error(err))
+		return "", err
+	}
+
+	qm.logger.Info("deposit task enqueued",
+		zap.String("task_id", info.ID),
+		zap.String("user_id", userID),
+		zap.String("amount", amount),
+	)
+	return info.ID, nil
+}
+
+// EnqueueWithdraw enfileira uma tarefa de saque
+func (qm *QueueManager) EnqueueWithdraw(ctx context.Context, userID, amount, callbackURL string) (string, error) {
+	payload := TransactionPayload{
+		UserID:      userID,
+		Amount:      amount,
+		CallbackURL: callbackURL,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		qm.logger.Error("failed to marshal withdraw payload", zap.Error(err))
+		return "", err
+	}
+
+	task := asynq.NewTask(TypeWithdraw, data)
+	info, err := qm.client.EnqueueContext(ctx, task, asynq.Queue("transactions"), asynq.MaxRetry(3))
+	if err != nil {
+		qm.logger.Error("failed to enqueue withdraw", zap.Error(err))
+		return "", err
+	}
+
+	qm.logger.Info("withdraw task enqueued",
+		zap.String("task_id", info.ID),
+		zap.String("user_id", userID),
+	)
+	return info.ID, nil
+}
+
+// EnqueueTransfer enfileira uma tarefa de transferência
+func (qm *QueueManager) EnqueueTransfer(ctx context.Context, userID, amount, toEmail, callbackURL string) (string, error) {
+	payload := TransactionPayload{
+		UserID:      userID,
+		Amount:      amount,
+		ToEmail:     toEmail,
+		CallbackURL: callbackURL,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		qm.logger.Error("failed to marshal transfer payload", zap.Error(err))
+		return "", err
+	}
+
+	task := asynq.NewTask(TypeTransfer, data)
+	info, err := qm.client.EnqueueContext(ctx, task, asynq.Queue("transactions"), asynq.MaxRetry(3))
+	if err != nil {
+		qm.logger.Error("failed to enqueue transfer", zap.Error(err))
+		return "", err
+	}
+
+	qm.logger.Info("transfer task enqueued",
+		zap.String("task_id", info.ID),
+		zap.String("user_id", userID),
+		zap.String("to_email", toEmail),
+	)
+	return info.ID, nil
+}
+
+// Handlers para processar tarefas
+func (qm *QueueManager) handleDeposit(ctx context.Context, t *asynq.Task) error {
+	var payload TransactionPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		qm.logger.Error("failed to unmarshal deposit payload", zap.Error(err))
+		return err
+	}
+
+	qm.logger.Info("processing deposit",
+		zap.String("user_id", payload.UserID),
+		zap.String("amount", payload.Amount),
+	)
+
+	// TODO: Implementar lógica real de depósito
+	// Por enquanto, só logging
+	return nil
+}
+
+func (qm *QueueManager) handleWithdraw(ctx context.Context, t *asynq.Task) error {
+	var payload TransactionPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		qm.logger.Error("failed to unmarshal withdraw payload", zap.Error(err))
+		return err
+	}
+
+	qm.logger.Info("processing withdraw",
+		zap.String("user_id", payload.UserID),
+		zap.String("amount", payload.Amount),
+	)
+
+	// TODO: Implementar lógica real de saque
+	return nil
+}
+
+func (qm *QueueManager) handleTransfer(ctx context.Context, t *asynq.Task) error {
+	var payload TransactionPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		qm.logger.Error("failed to unmarshal transfer payload", zap.Error(err))
+		return err
+	}
+
+	qm.logger.Info("processing transfer",
+		zap.String("from_user", payload.UserID),
+		zap.String("to_email", payload.ToEmail),
+		zap.String("amount", payload.Amount),
+	)
+
+	// TODO: Implementar lógica real de transferência
+	return nil
+}
+
+// Close fecha a conexão com Redis
+func (qm *QueueManager) Close() error {
+	if qm.server != nil {
+		qm.server.Stop()
+	}
+	return qm.client.Close()
+}
+
+// GetTaskInfo retorna informações sobre uma tarefa
+func (qm *QueueManager) GetTaskInfo(ctx context.Context, queue, taskID string) (*asynq.TaskInfo, error) {
+	opt, err := redis.ParseURL(qm.redisURL)
+	if err != nil {
+		return nil, err
+	}
+
+	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: opt.Addr})
+	defer inspector.Close()
+
+	info, err := inspector.GetTaskInfo(queue, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	return info, nil
+}

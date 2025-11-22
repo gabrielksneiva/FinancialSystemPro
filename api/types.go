@@ -1,19 +1,20 @@
 package api
 
 import (
-	"fmt"
+	"financial-system-pro/domain"
+	"financial-system-pro/internal/validator"
 
-	validator "github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
-var validate = validator.New()
+var validatorService = validator.New()
 
-func isValid(ctx *fiber.Ctx, body interface{}) error {
+// ValidateRequest valida o request body e retorna AppError se inválido
+func ValidateRequest(ctx *fiber.Ctx, body interface{}) *domain.AppError {
 	err := ctx.BodyParser(body)
 	if err != nil {
-		return fmt.Errorf("invalid JSON: %s", err)
+		return domain.NewValidationError("body", "Invalid JSON format")
 	}
 
-	return validate.Struct(body)
+	return validatorService.Validate(body)
 }

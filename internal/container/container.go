@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"financial-system-pro/internal/container/logger"
+	"financial-system-pro/internal/logger"
+	"financial-system-pro/internal/validator"
 	"financial-system-pro/repositories"
 	"financial-system-pro/services"
 	"financial-system-pro/workers"
@@ -15,10 +16,31 @@ import (
 	"go.uber.org/zap"
 )
 
+// RegisterRoutesFunc é uma função que registra rotas na aplicação
+// Ela será fornecida pelo package api para evitar ciclo de import
+type RegisterRoutesFunc func(
+	app *fiber.App,
+	userService *services.NewUserService,
+	authService *services.NewAuthService,
+	transactionService *services.NewTransactionService,
+	tronService *services.TronService,
+	logger *zap.Logger,
+	qm *workers.QueueManager,
+)
+
+// defaultRegisterRoutes é a função padrão (pode ser sobrescrita)
+var defaultRegisterRoutes RegisterRoutesFunc
+
+// SetRegisterRoutes permite que o package api registre a função real
+func SetRegisterRoutes(fn RegisterRoutesFunc) {
+	defaultRegisterRoutes = fn
+}
+
 // Config agrupa todas as configurações
 type Config struct {
 	DatabaseURL string
 	JWTSecret   string
+	RedisURL    string
 }
 
 // LoadConfig carrega configurações das variáveis de ambiente
@@ -26,6 +48,7 @@ func LoadConfig() Config {
 	return Config{
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
+		RedisURL:    os.Getenv("REDIS_URL"),
 	}
 }
 
@@ -45,19 +68,25 @@ func ProvideDatabaseConnection(cfg Config) (*repositories.NewDatabase, error) {
 }
 
 // ProvideUserService cria o serviço de usuários
-func ProvideUserService(database *repositories.NewDatabase) *services.NewUserService {
+func ProvideUserService(database *repositories.NewDatabase, lg *zap.Logger) *services.NewUserService {
 	if database == nil {
 		return nil
 	}
-	return &services.NewUserService{Database: database}
+	return &services.NewUserService{
+		Database: database,
+		Logger:   lg,
+	}
 }
 
 // ProvideAuthService cria o serviço de autenticação
-func ProvideAuthService(database *repositories.NewDatabase) *services.NewAuthService {
+func ProvideAuthService(database *repositories.NewDatabase, lg *zap.Logger) *services.NewAuthService {
 	if database == nil {
 		return nil
 	}
-	return &services.NewAuthService{Database: database}
+	return &services.NewAuthService{
+		Database: database,
+		Logger:   lg,
+	}
 }
 
 // ProvideTransactionWorkerPool cria o pool de workers para transações
@@ -72,11 +101,12 @@ func ProvideTransactionWorkerPool(database *repositories.NewDatabase) *workers.T
 func ProvideTransactionService(
 	database *repositories.NewDatabase,
 	pool *workers.TransactionWorkerPool,
+	lg *zap.Logger,
 ) *services.NewTransactionService {
 	if database == nil || pool == nil {
 		return nil
 	}
-	return &services.NewTransactionService{DB: database, W: pool}
+	return &services.NewTransactionService{DB: database, W: pool, Logger: lg}
 }
 
 // ProvideTronService cria o serviço de Tron
@@ -94,28 +124,47 @@ func ProvideLogger() (*zap.Logger, error) {
 	return logger.ProvideLogger()
 }
 
-// StartServer inicia o servidor Fiber
-func StartServer(lc fx.Lifecycle, app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService) {
+// ProvideValidator cria o serviço de validação
+func ProvideValidator() *validator.ValidatorService {
+	return validator.New()
+}
+
+// StartServer inicia o servidor Fiber e workers
+func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService, registerRoutes RegisterRoutesFunc, qm *workers.QueueManager) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			fmt.Println("Starting Fiber server on :3000")
+			lg.Info("Starting Fiber server on port 3000")
 
-			// Registrar rotas no Fiber
-			registerFiberRoutes(app, userService, authService, transactionService, tronService)
+			// Registrar rotas via callback function
+			if registerRoutes != nil {
+				registerRoutes(app, userService, authService, transactionService, tronService, lg, qm)
+			} else {
+				// Fallback: só health checks
+				registerFiberHealthChecks(app)
+			}
+
+			// Iniciar workers de fila se disponível
+			if qm != nil {
+				if err := qm.StartWorkers(ctx); err != nil {
+					lg.Error("failed to start queue workers", zap.Error(err))
+				}
+			}
 
 			go app.Listen(":3000")
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			fmt.Println("Shutting down Fiber server")
+			lg.Info("Shutting down Fiber server and workers")
+			if qm != nil {
+				qm.Close()
+			}
 			return app.Shutdown()
 		},
 	})
 }
 
-// registerFiberRoutes registra as rotas (cópia do router original)
-func registerFiberRoutes(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService) {
-	// Health check endpoints (sem autenticação)
+// registerFiberHealthChecks registra endpoints de health check
+func registerFiberHealthChecks(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		c.Set("Content-Type", "application/json")
 		return c.Status(200).JSON(fiber.Map{"status": "ok"})
@@ -127,11 +176,36 @@ func registerFiberRoutes(app *fiber.App, userService *services.NewUserService, a
 	})
 }
 
+// ProvideRegisterRoutes fornece a função de registro de rotas
+// Usa a versão padrão ou a registrada pelo package api
+func ProvideRegisterRoutes() RegisterRoutesFunc {
+	return defaultRegisterRoutes
+}
+
+// ProvideQueueManager fornece o gerenciador de fila Redis
+func ProvideQueueManager(cfg Config, lg *zap.Logger) (*workers.QueueManager, error) {
+	if cfg.RedisURL == "" {
+		lg.Warn("REDIS_URL not set, queue manager will not be initialized")
+		return nil, nil
+	}
+
+	qm, err := workers.NewQueueManager(cfg.RedisURL, lg)
+	if err != nil {
+		lg.Error("failed to initialize queue manager", zap.Error(err))
+		return nil, err
+	}
+
+	return qm, nil
+}
+
 // New cria a aplicação com todas as dependências gerenciadas por fx
 func New() *fx.App {
 	return fx.New(
 		fx.Provide(LoadConfig),
 		fx.Provide(ProvideLogger),
+		fx.Provide(ProvideValidator),
+		fx.Provide(ProvideQueueManager),
+		fx.Provide(ProvideRegisterRoutes),
 		fx.Provide(ProvideApp),
 		fx.Provide(ProvideDatabaseConnection),
 		fx.Provide(ProvideUserService),

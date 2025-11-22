@@ -3,15 +3,24 @@ package api
 import (
 	_ "financial-system-pro/docs"
 	"financial-system-pro/services"
+	"financial-system-pro/workers"
 	"time"
 
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
-func router(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, trasactionService *services.NewTransactionService, tronService *services.TronService) {
-	handler := &NewHandler{userService: userService, authService: authService, transactionService: trasactionService, tronService: tronService}
+func router(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, trasactionService *services.NewTransactionService, tronService *services.TronService, logger *zap.Logger, qm *workers.QueueManager) {
+	handler := &NewHandler{
+		userService:        userService,
+		authService:        authService,
+		transactionService: trasactionService,
+		tronService:        tronService,
+		queueManager:       qm,
+		logger:             logger,
+	}
 
 	// Health check endpoints (sem autenticação, sem dependência de DB)
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -30,6 +39,9 @@ func router(app *fiber.App, userService *services.NewUserService, authService *s
 		return c.Redirect("/docs/index.html", fiber.StatusFound)
 	})
 	app.Get("/docs/*", fiberSwagger.WrapHandler)
+
+	// Test endpoint for queue
+	app.Post("/api/queue/test-deposit", handler.TestQueueDeposit)
 
 	usersRoutes(app, handler)
 	transactionsRoutes(app, handler)

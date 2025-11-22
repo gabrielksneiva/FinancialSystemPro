@@ -3,10 +3,12 @@ package api
 import (
 	"financial-system-pro/domain"
 	"financial-system-pro/services"
+	"financial-system-pro/workers"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type NewHandler struct {
@@ -14,6 +16,18 @@ type NewHandler struct {
 	authService        *services.NewAuthService
 	transactionService *services.NewTransactionService
 	tronService        *services.TronService
+	queueManager       *workers.QueueManager
+	logger             *zap.Logger
+}
+
+// handleAppError responde com status code e mensagem de erro do AppError
+func (h *NewHandler) handleAppError(ctx *fiber.Ctx, err *domain.AppError) error {
+	h.logger.Warn("API error",
+		zap.String("code", err.Code),
+		zap.String("message", err.Message),
+		zap.Int("status", err.StatusCode),
+	)
+	return ctx.Status(err.StatusCode).JSON(err)
 }
 
 // checkDatabaseAvailable verifica se os serviços de banco estão disponíveis
@@ -44,17 +58,18 @@ func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 	}
 
 	var userRequest domain.UserRequest
-	err := isValid(ctx, &userRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if validErr := ValidateRequest(ctx, &userRequest); validErr != nil {
+		return h.handleAppError(ctx, validErr)
 	}
 
-	err = h.userService.CreateNewUser(&userRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	if appErr := h.userService.CreateNewUser(&userRequest); appErr != nil {
+		return h.handleAppError(ctx, appErr)
 	}
 
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User created succesfully"})
+	h.logger.Info("user created successfully",
+		zap.String("email", userRequest.Email),
+	)
+	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User created successfully"})
 }
 
 // CreateUser godoc
@@ -74,17 +89,19 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 	}
 
 	var loginRequest domain.LoginRequest
-	err := isValid(ctx, &loginRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if validErr := ValidateRequest(ctx, &loginRequest); validErr != nil {
+		return h.handleAppError(ctx, validErr)
 	}
 
-	tokenJWT, err := h.authService.Login(&loginRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	tokenJWT, appErr := h.authService.Login(&loginRequest)
+	if appErr != nil {
+		return h.handleAppError(ctx, appErr)
 	}
 
-	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Login succesfully", "token": tokenJWT})
+	h.logger.Info("user logged in successfully",
+		zap.String("email", loginRequest.Email),
+	)
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Login successful", "token": tokenJWT})
 }
 
 // CreateUser godoc
@@ -105,9 +122,8 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 	}
 
 	var depositRequest domain.DepositRequest
-	err := isValid(ctx, &depositRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if validErr := ValidateRequest(ctx, &depositRequest); validErr != nil {
+		return h.handleAppError(ctx, validErr)
 	}
 
 	amount, err := decimal.NewFromString(depositRequest.Amount)
@@ -166,9 +182,8 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 // @Router       /api/withdraw [post]
 func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 	var withdrawRequest domain.WithdrawRequest
-	err := isValid(ctx, &withdrawRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if validErr := ValidateRequest(ctx, &withdrawRequest); validErr != nil {
+		return h.handleAppError(ctx, validErr)
 	}
 
 	amount, err := decimal.NewFromString((withdrawRequest.Amount))
@@ -202,9 +217,8 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 // @Router       /api/transfer [post]
 func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
 	var transferRequest domain.TransferRequest
-	err := isValid(ctx, &transferRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if validErr := ValidateRequest(ctx, &transferRequest); validErr != nil {
+		return h.handleAppError(ctx, validErr)
 	}
 
 	amount, err := decimal.NewFromString(transferRequest.Amount)
@@ -272,9 +286,8 @@ func (h *NewHandler) GetTronBalance(ctx *fiber.Ctx) error {
 // @Router       /api/tron/send [post]
 func (h *NewHandler) SendTronTransaction(ctx *fiber.Ctx) error {
 	var txRequest domain.TronTransactionRequest
-	err := isValid(ctx, &txRequest)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	if validErr := ValidateRequest(ctx, &txRequest); validErr != nil {
+		return h.handleAppError(ctx, validErr)
 	}
 
 	if !h.tronService.ValidateAddress(txRequest.FromAddress) {
@@ -511,5 +524,52 @@ func (h *NewHandler) CallRPCMethod(ctx *fiber.Ctx) error {
 		"method": rpcCall.Method,
 		"params": rpcCall.Params,
 		"result": result,
+	})
+}
+
+// TestQueueDeposit testa o envio de uma tarefa de depósito à fila
+// POST /api/queue/test-deposit
+// Body: {"user_id": "uuid", "amount": "100.00"}
+func (h *NewHandler) TestQueueDeposit(ctx *fiber.Ctx) error {
+	if h.queueManager == nil {
+		return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Queue manager not initialized",
+		})
+	}
+
+	var req struct {
+		UserID string `json:"user_id"`
+		Amount string `json:"amount"`
+	}
+
+	if err := ctx.BodyParser(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.UserID == "" || req.Amount == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "user_id and amount are required",
+		})
+	}
+
+	taskID, err := h.queueManager.EnqueueDeposit(ctx.Context(), req.UserID, req.Amount, "")
+	if err != nil {
+		h.logger.Error("failed to enqueue deposit", zap.Error(err))
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to enqueue task",
+		})
+	}
+
+	h.logger.Info("test deposit task enqueued",
+		zap.String("task_id", taskID),
+		zap.String("user_id", req.UserID),
+	)
+
+	return ctx.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"task_id": taskID,
+		"status":  "queued",
+		"message": "Deposit task has been queued for processing",
 	})
 }

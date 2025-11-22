@@ -4,28 +4,45 @@ import (
 	"financial-system-pro/domain"
 	"financial-system-pro/repositories"
 	"financial-system-pro/utils"
-	"fmt"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type NewUserService struct {
 	Database *repositories.NewDatabase
+	Logger   *zap.Logger
 }
 
-func (s *NewUserService) CreateNewUser(userRequest *domain.UserRequest) error {
+func (s *NewUserService) CreateNewUser(userRequest *domain.UserRequest) *domain.AppError {
+	// Verificar se usuário já existe
 	exists, err := s.verifyIfUserAlreadyExists(userRequest.Email)
 	if err != nil {
-		return fmt.Errorf("error on verifying user: %s", err)
-	}
-	if exists {
-		return fmt.Errorf("user already exists")
+		s.Logger.Error("error verifying user existence",
+			zap.String("email", userRequest.Email),
+			zap.Error(err),
+		)
+		return domain.NewDatabaseError("user verification failed", nil)
 	}
 
+	if exists {
+		s.Logger.Info("user already exists",
+			zap.String("email", userRequest.Email),
+		)
+		return domain.NewValidationError("email", "Email already registered")
+	}
+
+	// Hash da senha
 	hashedPassword, err := utils.HashAString(userRequest.Password)
 	if err != nil {
-		return fmt.Errorf("error on hash password: %s", err)
+		s.Logger.Error("error hashing password",
+			zap.String("email", userRequest.Email),
+			zap.Error(err),
+		)
+		return domain.NewInternalError("password hashing failed", nil)
 	}
 
+	// Criar usuário
 	parsedUser := repositories.User{
 		Email:    userRequest.Email,
 		Password: hashedPassword,
@@ -33,9 +50,16 @@ func (s *NewUserService) CreateNewUser(userRequest *domain.UserRequest) error {
 
 	err = s.Database.Insert(&parsedUser)
 	if err != nil {
-		return fmt.Errorf("error on insert user: %s", err)
+		s.Logger.Error("error inserting user",
+			zap.String("email", userRequest.Email),
+			zap.Error(err),
+		)
+		return domain.NewDatabaseError("user creation failed", nil)
 	}
 
+	s.Logger.Info("user created successfully",
+		zap.String("email", userRequest.Email),
+	)
 	return nil
 }
 

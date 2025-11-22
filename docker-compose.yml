@@ -15,5 +15,16 @@ services:
       - financialsystempro_postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
 
+  redis:
+    image: redis:7-alpine
+    container_name: financialsystempro_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - financialsystempro_redis_data:/data
+    command: redis-server --appendonly yes
+
 volumes:
   financialsystempro_postgres_data:
+  financialsystempro_redis_data:
