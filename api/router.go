@@ -3,6 +3,7 @@ package api
 import (
 	_ "financial-system-pro/docs"
 	"financial-system-pro/services"
+	"time"
 
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 
@@ -12,12 +13,12 @@ import (
 func router(app *fiber.App, userService *services.NewUserService, authService *services.NewAuthService, trasactionService *services.NewTransactionService, tronService *services.TronService) {
 	handler := &NewHandler{userService: userService, authService: authService, transactionService: trasactionService, tronService: tronService}
 
-	// Health check endpoints (sem autenticação)
+	// Health check endpoints (sem autenticação, sem dependência de DB)
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok", "timestamp": time.Now()})
 	})
 	app.Get("/ready", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"ready": true})
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"ready": true, "timestamp": time.Now()})
 	})
 
 	app.Get("/docs", func(c *fiber.Ctx) error {

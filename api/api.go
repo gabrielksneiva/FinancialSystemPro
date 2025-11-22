@@ -12,24 +12,35 @@ import (
 )
 
 func Start() {
-	// Carrega variáveis de ambiente do arquivo .env
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("Erro ao carregar o arquivo .env")
-		os.Exit(1)
+	// Carrega variáveis de ambiente do arquivo .env (opcional em produção)
+	_ = godotenv.Load()
+
+	// Tentar usar DATABASE_URL do Railway primeiro, depois fallback para variáveis individuais
+	var connStr string
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		connStr = dbURL
+		fmt.Println("Using DATABASE_URL from environment")
+	} else {
+		dbHost := os.Getenv("DB_HOST")
+		dbUser := os.Getenv("DB_ADMIN")
+		if dbUser == "" {
+			dbUser = os.Getenv("DB_USER")
+		}
+		dbPassword := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
+		dbPort := os.Getenv("DB_PORT")
+
+		if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
+			fmt.Printf("Warning: Missing DB environment variables. DB_HOST=%s, DB_USER=%s, DB_NAME=%s, DB_PORT=%s\n", dbHost, dbUser, dbName, dbPort)
+			if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
+				fmt.Println("Error: Required database environment variables are missing.")
+				os.Exit(1)
+			}
+			fmt.Println("Info: Running in Railway environment - will retry connection with available vars.")
+		}
+		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", dbHost, dbUser, dbPassword, dbName, dbPort)
 	}
 
-	dbHost := os.Getenv("DB_HOST")
-	dbUser := os.Getenv("DB_ADMIN")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbPort := os.Getenv("DB_PORT")
-
-	if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
-		fmt.Println("One or more required environment variables (DB_HOST, DB_ADMIN, DB_PASSWORD, DB_NAME, DB_PORT) are missing.")
-		os.Exit(1)
-	}
-
-	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", dbHost, dbUser, dbPassword, dbName, dbPort)
 	db := repositories.ConnectDatabase(connStr)
 
 	database := &repositories.NewDatabase{DB: db}
