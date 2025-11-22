@@ -67,8 +67,8 @@ func (s *NewUserService) CreateNewUser(userRequest *domain.UserRequest) *domain.
 				zap.Error(err),
 			)
 		} else {
-			// Criptografar private key (por enquanto apenas armazenar o address)
-			errWallet := s.Database.SaveWalletInfo(parsedUser.ID, wallet.Address, "")
+			// Salvar a private key criptografada junto com o endereço
+			errWallet := s.Database.SaveWalletInfo(parsedUser.ID, wallet.Address, wallet.EncryptedPrivKey)
 			if errWallet != nil {
 				s.Logger.Warn("error saving wallet info",
 					zap.String("email", userRequest.Email),

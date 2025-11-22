@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"financial-system-pro/domain"
+	"financial-system-pro/utils"
 	"fmt"
 
 	"golang.org/x/crypto/ripemd160"
@@ -27,6 +28,15 @@ func (twm *TronWalletManager) GenerateWallet() (*domain.WalletInfo, error) {
 		return nil, fmt.Errorf("erro ao gerar private key: %v", err)
 	}
 
+	// Converter private key para hex string
+	privateKeyHex := hex.EncodeToString(privKeyBytes)
+
+	// Criptografar a private key para armazenamento seguro
+	encryptedPrivKey, err := utils.EncryptPrivateKey(privateKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criptografar private key: %v", err)
+	}
+
 	// Gerar public key a partir da private key (usar hash SHA-256)
 	publicKeyHash := sha256.Sum256(privKeyBytes)
 	pubKeyBytes := publicKeyHash[:]
@@ -35,9 +45,11 @@ func (twm *TronWalletManager) GenerateWallet() (*domain.WalletInfo, error) {
 	address := twm.generateTronAddress(pubKeyBytes)
 
 	return &domain.WalletInfo{
-		Address:    address,
-		PublicKey:  hex.EncodeToString(pubKeyBytes),
-		Blockchain: domain.BlockchainTRON,
+		Address:          address,
+		PublicKey:        hex.EncodeToString(pubKeyBytes),
+		PrivateKey:       privateKeyHex, // Retornar em hex (apenas para salvar no BD)
+		EncryptedPrivKey: encryptedPrivKey,
+		Blockchain:       domain.BlockchainTRON,
 	}, nil
 }
 

@@ -13,9 +13,11 @@ const (
 
 // WalletInfo representa os dados de uma carteira
 type WalletInfo struct {
-	Address    string         `json:"address"`
-	PublicKey  string         `json:"public_key"`
-	Blockchain BlockchainType `json:"blockchain"`
+	Address          string         `json:"address"`
+	PublicKey        string         `json:"public_key"`
+	PrivateKey       string         `json:"private_key,omitempty"`           // Private key em hex (apenas para geração)
+	EncryptedPrivKey string         `json:"encrypted_private_key,omitempty"` // Private key criptografada para armazenamento
+	Blockchain       BlockchainType `json:"blockchain"`
 }
 
 // GeneratedWallet é o resultado da geração de uma carteira

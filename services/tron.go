@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"financial-system-pro/domain"
@@ -289,6 +290,51 @@ func (ts *TronService) GetTransactionStatus(txHash string) (string, error) {
 	}
 
 	return "pending", nil
+}
+
+// GetTransaction obtém informações detalhadas de uma transação (implementa TronAPI interface)
+func (ts *TronService) GetTransaction(txHash string) (interface{}, error) {
+	if txHash == "" {
+		return nil, fmt.Errorf("hash da transação inválido")
+	}
+
+	// Obter informações da transação
+	url := fmt.Sprintf("%s/walletsolidity/gettransactionbyid", ts.testnetRPC)
+
+	payload := map[string]interface{}{
+		"value": txHash,
+	}
+
+	payloadBytes, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
+	}
+
+	if ts.apiKey != "" {
+		req.Header.Set("TRON-PRO-API-KEY", ts.apiKey)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = io.NopCloser(bytes.NewBuffer(payloadBytes))
+
+	resp, err := ts.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao fazer requisição à API Tron: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("transação não encontrada: status %d", resp.StatusCode)
+	}
+
+	var transaction map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&transaction); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar transação: %w", err)
+	}
+
+	return transaction, nil
 }
 
 // EstimateGasForTransaction estima o gasto de energia para uma transação

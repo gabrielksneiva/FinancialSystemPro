@@ -104,17 +104,36 @@ func ProvideTransactionWorkerPool(database *repositories.NewDatabase) *workers.T
 func ProvideTransactionService(
 	database *repositories.NewDatabase,
 	pool *workers.TransactionWorkerPool,
+	tronPool *workers.TronWorkerPool,
+	tronSvc *services.TronService,
 	lg *zap.Logger,
 ) *services.NewTransactionService {
 	if database == nil || pool == nil {
 		return nil
 	}
-	return &services.NewTransactionService{DB: database, W: pool, Logger: lg}
+	return &services.NewTransactionService{
+		DB:             database,
+		W:              pool,
+		TronWorkerPool: tronPool,
+		TronService:    tronSvc,
+		Logger:         lg,
+	}
 }
 
 // ProvideTronService cria o serviço de Tron
 func ProvideTronService() *services.TronService {
 	return services.NewTronService()
+}
+
+// ProvideTronWorkerPool cria o pool de workers para confirmação de transações TRON
+func ProvideTronWorkerPool(
+	database *repositories.NewDatabase,
+	tronSvc *services.TronService,
+	lg *zap.Logger,
+) *workers.TronWorkerPool {
+	pool := workers.NewTronWorkerPool(database, tronSvc, 5, lg)
+	pool.Start() // Inicia automaticamente
+	return pool
 }
 
 // ProvideApp cria a aplicação Fiber
@@ -231,8 +250,9 @@ func New() *fx.App {
 		fx.Provide(ProvideUserService),
 		fx.Provide(ProvideAuthService),
 		fx.Provide(ProvideTransactionWorkerPool),
-		fx.Provide(ProvideTransactionService),
 		fx.Provide(ProvideTronService),
+		fx.Provide(ProvideTronWorkerPool),
+		fx.Provide(ProvideTransactionService),
 		fx.Invoke(StartServer),
 	)
 }
