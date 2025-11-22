@@ -11,6 +11,5 @@ RUN apk --no-cache add ca-certificates postgresql-client tzdata curl
 WORKDIR /root/
 COPY --from=builder /app/main .
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD curl -f http://localhost:3000/health || exit 1
 CMD ["./main"]
