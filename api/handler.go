@@ -164,8 +164,13 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/balance [get]
 func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
-	UserID := ctx.Locals("ID").(string)
-	if UserID == "" {
+	userIDLocal := ctx.Locals("user_id")
+	if userIDLocal == nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
+	}
+
+	UserID, ok := userIDLocal.(string)
+	if !ok || UserID == "" {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 

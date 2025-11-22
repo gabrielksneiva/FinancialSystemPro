@@ -22,12 +22,21 @@ func VerifyJWTMiddleware() fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error while decode token"})
 		}
 
+		if !decodedToken.Valid {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid token"})
+		}
+
 		claims, ok := decodedToken.Claims.(jwt.MapClaims)
 		if !ok {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Invalid token claims"})
 		}
 
-		c.Locals("ID", claims["ID"])
+		userID, ok := claims["ID"].(string)
+		if !ok || userID == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid user ID in token"})
+		}
+
+		c.Locals("user_id", userID)
 
 		return c.Next()
 	}

@@ -120,10 +120,17 @@ func (rl *RateLimiter) cleanup() {
 func (rl *RateLimiter) Middleware(action string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Pega userID do token JWT
-		userID := c.Locals("user_id").(string)
-		if userID == "" {
+		userIDLocal := c.Locals("user_id")
+		if userIDLocal == nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "unauthorized",
+				"error": "user_id not found in context",
+			})
+		}
+
+		userID, ok := userIDLocal.(string)
+		if !ok || userID == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "invalid user_id in context",
 			})
 		}
 

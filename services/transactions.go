@@ -4,6 +4,7 @@ import (
 	"financial-system-pro/domain"
 	r "financial-system-pro/repositories"
 	w "financial-system-pro/workers"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -18,7 +19,14 @@ type NewTransactionService struct {
 }
 
 func (t *NewTransactionService) Deposit(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error) {
-	id := c.Locals("ID").(string)
+	idLocal := c.Locals("user_id")
+	if idLocal == nil {
+		return nil, fmt.Errorf("user_id not found in context")
+	}
+	id, ok := idLocal.(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid user_id format in context")
+	}
 
 	uid, err := uuid.Parse(id)
 	if err != nil {
@@ -101,7 +109,14 @@ func (t *NewTransactionService) GetBalance(c *fiber.Ctx, userID string) (decimal
 }
 
 func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error) {
-	id := c.Locals("ID").(string)
+	idLocal := c.Locals("user_id")
+	if idLocal == nil {
+		return nil, fmt.Errorf("user_id not found in context")
+	}
+	id, ok := idLocal.(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid user_id format in context")
+	}
 
 	uid, err := uuid.Parse(id)
 	if err != nil {
@@ -155,7 +170,14 @@ func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal, c
 }
 
 func (t *NewTransactionService) Transfer(c *fiber.Ctx, amount decimal.Decimal, userTo, callbackURL string) (*ServiceResponse, error) {
-	id := c.Locals("ID").(string)
+	idLocal := c.Locals("user_id")
+	if idLocal == nil {
+		return nil, fmt.Errorf("user_id not found in context")
+	}
+	id, ok := idLocal.(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid user_id format in context")
+	}
 	userFrom, err := uuid.Parse(id)
 	if err != nil {
 		t.Logger.Error("invalid user id for transfer", zap.String("id", id), zap.Error(err))
