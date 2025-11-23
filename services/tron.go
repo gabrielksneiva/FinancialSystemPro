@@ -14,26 +14,31 @@ import (
 )
 
 type TronService struct {
-	testnetRPC     string
-	testnetGRPC    string
-	apiKey         string
-	httpClient     *http.Client
-	rpcClient      *RPCClient
-	grpcClient     *TronGRPCClient
-	mu             sync.RWMutex
-	lastRPCError   error
-	lastRPCErrorAt time.Time
+	testnetRPC      string
+	testnetGRPC     string
+	apiKey          string
+	vaultAddress    string // Endereço do cofre TRON
+	vaultPrivateKey string // Private key do cofre
+	httpClient      *http.Client
+	rpcClient       *RPCClient
+	grpcClient      *TronGRPCClient
+	mu              sync.RWMutex
+	lastRPCError    error
+	lastRPCErrorAt  time.Time
 }
 
 // NewTronService inicializa a conexão com Tron Testnet
-func NewTronService() *TronService {
+// Agora recebe config para acessar credenciais do cofre
+func NewTronService(vaultAddress, vaultPrivateKey string) *TronService {
 	rpcEndpoint := os.Getenv("TRON_TESTNET_RPC")
 	grpcEndpoint := os.Getenv("TRON_TESTNET_GRPC")
 
 	ts := &TronService{
-		testnetRPC:  rpcEndpoint,
-		testnetGRPC: grpcEndpoint,
-		apiKey:      os.Getenv("TRON_API_KEY"),
+		testnetRPC:      rpcEndpoint,
+		testnetGRPC:     grpcEndpoint,
+		apiKey:          os.Getenv("TRON_API_KEY"),
+		vaultAddress:    vaultAddress,
+		vaultPrivateKey: vaultPrivateKey,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -562,4 +567,19 @@ func (ts *TronService) HealthCheck(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// GetVaultAddress retorna o endereço do cofre TRON
+func (ts *TronService) GetVaultAddress() string {
+	return ts.vaultAddress
+}
+
+// GetVaultPrivateKey retorna a private key do cofre TRON
+func (ts *TronService) GetVaultPrivateKey() string {
+	return ts.vaultPrivateKey
+}
+
+// HasVaultConfigured verifica se o cofre está configurado
+func (ts *TronService) HasVaultConfigured() bool {
+	return ts.vaultAddress != "" && ts.vaultPrivateKey != ""
 }

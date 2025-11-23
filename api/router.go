@@ -77,4 +77,5 @@ func transactionsRoutes(app *fiber.App, handler *NewHandler) {
 	protectedPaths.Post("/withdraw", handler.rateLimiter.Middleware("withdraw"), handler.Withdraw)
 	protectedPaths.Post("/transfer", handler.rateLimiter.Middleware("transfer"), handler.Transfer)
 	protectedPaths.Get("/balance", handler.Balance)
+	protectedPaths.Get("/wallet", handler.GetUserWallet)
 }

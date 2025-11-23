@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
@@ -182,17 +183,66 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{"balance": balance})
 }
 
+// GetUserWallet godoc
+// @Summary      Retorna o endereço TRON da carteira do usuário
+// @Description  Endpoint para obter o endereço TRON associado à conta do usuário autenticado
+// @Tags         Wallet
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]interface{}}
+// @Failure      400  {object}  map[string]interface{}}
+// @Failure      404  {object}  map[string]interface{}}
+// @Failure      500  {object}  map[string]interface{}}
+// @Router       /api/wallet [get]
+func (h *NewHandler) GetUserWallet(ctx *fiber.Ctx) error {
+	userIDLocal := ctx.Locals("user_id")
+	if userIDLocal == nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
+	}
+
+	userID, ok := userIDLocal.(string)
+	if !ok || userID == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
+	// Converter para UUID
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID format"})
+	}
+
+	// Buscar wallet do usuário no BD
+	walletInfo, err := h.transactionService.DB.GetWalletInfo(uid)
+	if err != nil {
+		h.logger.Warn("wallet not found for user",
+			zap.String("user_id", userID),
+			zap.Error(err),
+		)
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":   "Wallet not found",
+			"message": "User wallet has not been generated yet",
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"wallet_address": walletInfo.TronAddress,
+		"blockchain":     "tron",
+		"user_id":        userID,
+	})
+}
+
 // CreateUser godoc
 // @Summary      Retira valor da conta do usuário
-// @Description  Endpoint para retirar valor da conta do usuário
+// @Description  Endpoint para retirar valor da conta do usuário. Para withdraw TRON, a wallet do usuário é usada automaticamente. Opcionalmente, um tron_address externo pode ser fornecido.
 // @Tags         Transactions
 // @Accept       json
 // @Produce      json
-// @Param        withdrawRequest  body  domain.WithdrawRequest  true  "Dados do saque"
+// @Param        withdrawRequest  body  domain.WithdrawRequest  true  "Dados do saque. Para TRON: withdraw_type='tron' e tron_address é opcional (usa wallet do usuário se vazio)"
 // @Security     BearerAuth
-// @Success      202  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Success      202  {object}  map[string]interface{}}
+// @Failure      400  {object}  map[string]interface{}}
+// @Failure      500  {object}  map[string]interface{}}
 // @Router       /api/withdraw [post]
 func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 	var withdrawRequest domain.WithdrawRequest

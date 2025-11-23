@@ -270,6 +270,7 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, amount decimal.Decimal, u
 }
 
 // WithdrawTron realiza um saque direto para TRON blockchain
+// SEMPRE envia da carteira do cofre (vault) para a carteira do usuário
 func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decimal, tronAddress, callbackURL string) (*ServiceResponse, error) {
 	idLocal := c.Locals("user_id")
 	if idLocal == nil {
@@ -286,54 +287,36 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 		return nil, err
 	}
 
-	// Se não foi especificado endereço de destino, usar a wallet automática do usuário
-	destinationAddress := tronAddress
-	if destinationAddress == "" {
-		// Buscar wallet automática do usuário
-		walletInfo, err := t.DB.GetWalletInfo(uid)
-		if err != nil {
-			t.Logger.Error("user has no auto-generated TRON wallet", zap.String("user_id", uid.String()), zap.Error(err))
-			return nil, fmt.Errorf("TRON wallet not found. Please contact support to generate your wallet")
-		}
-		destinationAddress = walletInfo.TronAddress
-		t.Logger.Info("using user's auto-generated wallet",
-			zap.String("user_id", uid.String()),
-			zap.String("wallet_address", destinationAddress),
-		)
-	} else {
-		// Validar endereço TRON manualmente especificado
-		if !t.TronService.ValidateAddress(destinationAddress) {
-			return nil, fmt.Errorf("invalid TRON address: %s", destinationAddress)
-		}
+	// SEMPRE usar a wallet automática do usuário como destino
+	walletInfo, err := t.DB.GetWalletInfo(uid)
+	if err != nil {
+		t.Logger.Error("user has no auto-generated TRON wallet", zap.String("user_id", uid.String()), zap.Error(err))
+		return nil, fmt.Errorf("TRON wallet not found. Please contact support to generate your wallet")
 	}
+
+	destinationAddress := walletInfo.TronAddress
+	t.Logger.Info("withdraw to user's wallet",
+		zap.String("user_id", uid.String()),
+		zap.String("wallet_address", destinationAddress),
+	)
+
+	// Verificar se o cofre TRON está configurado
+	if !t.TronService.HasVaultConfigured() {
+		t.Logger.Error("TRON vault not configured")
+		return nil, fmt.Errorf("TRON vault is not configured. Please contact administrator")
+	}
+
+	vaultAddress := t.TronService.GetVaultAddress()
+	vaultPrivateKey := t.TronService.GetVaultPrivateKey()
 
 	// Converter amount de decimal para SUN (1 TRX = 1.000.000 SUN)
 	amountInSun := amount.Mul(decimal.NewFromInt(1000000)).BigInt().Int64()
 
-	// Descriptografar private key da carteira
-	walletPrivKey := ""
-	if destinationAddress == tronAddress {
-		// Se usando auto-wallet, descriptografar a private key
-		walletInfo, err := t.DB.GetWalletInfo(uid)
-		if err == nil && walletInfo != nil && walletInfo.EncryptedPrivKey != "" {
-			decryptedKey, err := t.decryptPrivateKey(walletInfo.EncryptedPrivKey)
-			if err != nil {
-				t.Logger.Warn("error decrypting private key",
-					zap.String("user_id", uid.String()),
-					zap.Error(err),
-				)
-				// Continuar sem private key - será enviado manualmente depois
-			} else {
-				walletPrivKey = decryptedKey
-			}
-		}
-	}
-
 	t.Logger.Info("TRON withdraw request received",
 		zap.String("user_id", uid.String()),
-		zap.String("destination", destinationAddress),
+		zap.String("from_vault", vaultAddress),
+		zap.String("to_user_wallet", destinationAddress),
 		zap.String("amount_sun", fmt.Sprintf("%d", amountInSun)),
-		zap.Bool("has_private_key", walletPrivKey != ""),
 	)
 
 	// Debitar do balance interno imediatamente
@@ -343,40 +326,35 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 		return nil, err
 	}
 
-	// Tentar enviar a transação TRON
+	// Enviar a transação TRON do cofre para a wallet do usuário
 	var txHash string
 	var sendError error
-	status := "pending_broadcast" // Status padrão: pendente de broadcast
+	status := "pending_broadcast"
 
-	if walletPrivKey != "" && t.TronService != nil {
-		// Obter endereço da carteira para usar como origem
-		userWallet, errWallet := t.DB.GetWalletInfo(uid)
-		if errWallet == nil && userWallet != nil {
-			// Tentar enviar a transação
-			txHash, sendError = t.TronService.SendTransaction(
-				userWallet.TronAddress,
-				destinationAddress,
-				amountInSun,
-				walletPrivKey,
-			)
+	// Tentar enviar a transação do VAULT para o usuário
+	txHash, sendError = t.TronService.SendTransaction(
+		vaultAddress,
+		destinationAddress,
+		amountInSun,
+		vaultPrivateKey,
+	)
 
-			if sendError != nil {
-				t.Logger.Warn("error sending TRON transaction",
-					zap.String("user_id", uid.String()),
-					zap.String("from", userWallet.TronAddress),
-					zap.String("to", destinationAddress),
-					zap.Error(sendError),
-				)
-				status = "send_failed"
-			} else {
-				t.Logger.Info("TRON transaction sent successfully",
-					zap.String("user_id", uid.String()),
-					zap.String("tx_hash", txHash),
-					zap.String("to", destinationAddress),
-				)
-				status = "confirmed" // Será atualizado após confirmação
-			}
-		}
+	if sendError != nil {
+		t.Logger.Error("error sending TRON transaction from vault",
+			zap.String("user_id", uid.String()),
+			zap.String("from_vault", vaultAddress),
+			zap.String("to_user", destinationAddress),
+			zap.Error(sendError),
+		)
+		status = "send_failed"
+	} else {
+		t.Logger.Info("TRON transaction sent successfully from vault",
+			zap.String("user_id", uid.String()),
+			zap.String("tx_hash", txHash),
+			zap.String("from", vaultAddress),
+			zap.String("to", destinationAddress),
+		)
+		status = "confirmed" // Será atualizado após confirmação
 	}
 
 	// Criar registro de transação

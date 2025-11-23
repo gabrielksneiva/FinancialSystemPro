@@ -22,8 +22,8 @@ type BalanceRequest struct {
 type WithdrawRequest struct {
 	Amount       string `json:"amount" validate:"required"`
 	CallbackURL  string `json:"callback_url" validate:"omitempty,url"`
-	TronAddress  string `json:"tron_address" validate:"omitempty,required_if=WithdrawType tron"` // Para withdraw TRON
-	WithdrawType string `json:"withdraw_type" validate:"omitempty,oneof=internal tron"`          // "internal" ou "tron"
+	TronAddress  string `json:"tron_address" validate:"omitempty"` // Opcional - se vazio, usa wallet do usuário
+	WithdrawType string `json:"withdraw_type" validate:"omitempty,oneof=internal tron"`
 }
 
 type TransferRequest struct {

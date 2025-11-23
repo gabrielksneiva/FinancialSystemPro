@@ -40,17 +40,21 @@ func SetRegisterRoutes(fn RegisterRoutesFunc) {
 
 // Config agrupa todas as configurações
 type Config struct {
-	DatabaseURL string
-	JWTSecret   string
-	RedisURL    string
+	DatabaseURL         string
+	JWTSecret           string
+	RedisURL            string
+	TronVaultAddress    string // Endereço da carteira do cofre (origem dos withdraws)
+	TronVaultPrivateKey string // Private key do cofre (para assinar transações)
 }
 
 // LoadConfig carrega configurações das variáveis de ambiente
 func LoadConfig() Config {
 	return Config{
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
-		RedisURL:    os.Getenv("REDIS_URL"),
+		DatabaseURL:         os.Getenv("DATABASE_URL"),
+		JWTSecret:           os.Getenv("JWT_SECRET"),
+		RedisURL:            os.Getenv("REDIS_URL"),
+		TronVaultAddress:    os.Getenv("TRON_VAULT_ADDRESS"),
+		TronVaultPrivateKey: os.Getenv("TRON_VAULT_PRIVATE_KEY"),
 	}
 }
 
@@ -121,8 +125,8 @@ func ProvideTransactionService(
 }
 
 // ProvideTronService cria o serviço de Tron
-func ProvideTronService() *services.TronService {
-	return services.NewTronService()
+func ProvideTronService(cfg Config) *services.TronService {
+	return services.NewTronService(cfg.TronVaultAddress, cfg.TronVaultPrivateKey)
 }
 
 // ProvideTronWorkerPool cria o pool de workers para confirmação de transações TRON
