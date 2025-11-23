@@ -42,8 +42,7 @@ jobs:
       - name: GolangCI-Lint
         uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.64.8
-          install-mode: source
+          version: latest
           args: --timeout=5m --out-format=colored-line-number
 
   vet:
