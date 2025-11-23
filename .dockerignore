@@ -1,0 +1,30 @@
+# VCS & editor
+.git
+.gitignore
+.vscode
+
+# Env & secrets (keep example)
+.env
+.env.*
+!.env.example
+
+# Tests & coverage (not needed in runtime image)
+test/
+coverage.out
+
+# Local config / compose / infra not required
+docker-compose.yml
+docker-compose.observability.yml
+railway.*
+Makefile
+
+# CI artifacts
+*.sarif
+trivy-*.json
+
+# Misc
+README.md
+*.md
+
+# Keep docs for swagger generation
+!docs/

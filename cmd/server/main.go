@@ -7,8 +7,12 @@
 // @description Digite "Bearer {seu_token}"
 package main
 
-import http "financial-system-pro/internal/adapters/http"
+import (
+	http "financial-system-pro/internal/adapters/http"
+	"fmt"
+)
 
 func main() {
+	fmt.Printf("FinancialSystemPro version=%s commit=%s date=%s\n", version, commit, buildDate)
 	http.Start()
 }
