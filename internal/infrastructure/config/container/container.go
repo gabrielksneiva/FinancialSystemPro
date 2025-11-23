@@ -213,7 +213,22 @@ func ProvideWalletManager() entities.WalletManager {
 }
 
 // StartServer inicia o servidor Fiber e workers
-func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, eventBus events.Bus, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService, registerRoutes RegisterRoutesFunc, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
+func StartServer(
+	lc fx.Lifecycle,
+	app *fiber.App,
+	lg *zap.Logger,
+	eventBus events.Bus,
+	userService *services.NewUserService,
+	authService *services.NewAuthService,
+	transactionService *services.NewTransactionService,
+	tronService *services.TronService,
+	registerRoutes RegisterRoutesFunc,
+	qm *workers.QueueManager,
+	breakerManager *breaker.BreakerManager,
+	// DDD Services (podem ser nil se não estiverem disponíveis)
+	dddUserService *userSvc.UserService,
+	dddTransactionService *txnSvc.TransactionService,
+) {
 	// Inicializar distributed tracing
 	shutdownTracer, err := tracing.InitTracer("financial-system-pro", lg)
 	if err != nil {
@@ -233,12 +248,28 @@ func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, eventBus event
 			// Adicionar middleware de tracing
 			app.Use(tracing.FiberTracingMiddleware("financial-system-pro"))
 
-			// Registrar rotas via callback function
-			if registerRoutes != nil {
-				registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager)
+			// Se temos DDD services, usar as novas rotas DDD
+			if dddUserService != nil && dddTransactionService != nil {
+				lg.Info("registering DDD routes")
+				// Importar a função do package http
+				// Isso será feito dinamicamente já que estamos no package container
+				// e precisamos evitar ciclo de import
+
+				// Para isso, vamos usar a função RegisterDDDRoutes se disponível
+				// Por enquanto, registrar apenas legacy routes
+				if registerRoutes != nil {
+					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager)
+				} else {
+					registerFiberHealthChecks(app)
+				}
 			} else {
-				// Fallback: só health checks
-				registerFiberHealthChecks(app)
+				// Registrar legacy rotas
+				if registerRoutes != nil {
+					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager)
+				} else {
+					// Fallback: só health checks
+					registerFiberHealthChecks(app)
+				}
 			}
 
 			// Iniciar workers de fila se disponível
