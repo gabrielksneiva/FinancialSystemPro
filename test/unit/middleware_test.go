@@ -124,7 +124,7 @@ func (suite *MiddlewareTestSuite) TestJWTMiddleware_InvalidToken() {
 // Test JWT Middleware - Expired Token
 func (suite *MiddlewareTestSuite) TestJWTMiddleware_ExpiredToken() {
 	// Set very short expiration
-	os.Setenv("EXPIRATION_TIME", "-1") // Already expired
+	suite.T().Setenv("EXPIRATION_TIME", "-1") // Already expired
 
 	claims := jwt.MapClaims{
 		"ID": "123e4567-e89b-12d3-a456-426614174000",
@@ -132,7 +132,7 @@ func (suite *MiddlewareTestSuite) TestJWTMiddleware_ExpiredToken() {
 	token, _ := utils.CreateJWTToken(claims)
 
 	// Reset expiration
-	os.Setenv("EXPIRATION_TIME", "3600")
+	suite.T().Setenv("EXPIRATION_TIME", "3600")
 
 	suite.app.Use(func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -355,8 +355,8 @@ func TestMiddlewareTestSuite(t *testing.T) {
 
 // Benchmark middleware performance
 func BenchmarkJWTMiddleware(b *testing.B) {
-	os.Setenv("SECRET_KEY", "test-key")
-	os.Setenv("EXPIRATION_TIME", "3600")
+	b.Setenv("SECRET_KEY", "test-key")
+	b.Setenv("EXPIRATION_TIME", "3600")
 
 	app := fiber.New()
 

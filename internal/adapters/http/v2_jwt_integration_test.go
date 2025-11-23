@@ -132,6 +132,7 @@ func TestV2JWT_DepositInvalidAmounts(t *testing.T) {
 		if resp.StatusCode != fiber.StatusBadRequest {
 			t.Errorf("amount %s expected 400 got %d", amt, resp.StatusCode)
 		}
+		_ = resp.Body.Close()
 	}
 }
 
@@ -147,6 +148,7 @@ func TestV2JWT_WithdrawInsufficientBalance(t *testing.T) {
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("expected 400 got %d", resp.StatusCode)
 	}
+	_ = resp.Body.Close()
 	// balance should remain 5
 	wallet, _ := wr.FindByUserID(context.Background(), uid)
 	if wallet.Balance != 5 {
@@ -166,6 +168,7 @@ func TestV2JWT_DepositValidUpdatesBalance(t *testing.T) {
 	if resp.StatusCode != fiber.StatusAccepted {
 		t.Fatalf("expected 202 got %d", resp.StatusCode)
 	}
+	_ = resp.Body.Close()
 	w, _ := wr.FindByUserID(context.Background(), uid)
 	if w.Balance < 10 {
 		t.Errorf("expected balance >=10 got %v", w.Balance)
@@ -184,6 +187,7 @@ func TestV2JWT_InvalidToken(t *testing.T) {
 	if resp.StatusCode != fiber.StatusInternalServerError {
 		t.Fatalf("expected 500 got %d", resp.StatusCode)
 	}
+	_ = resp.Body.Close()
 }
 
 func TestV2JWT_MissingToken(t *testing.T) {
@@ -197,6 +201,7 @@ func TestV2JWT_MissingToken(t *testing.T) {
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401 got %d", resp.StatusCode)
 	}
+	_ = resp.Body.Close()
 }
 
 func TestV2CircuitBreaker_OpenAfterFailures(t *testing.T) {
@@ -230,6 +235,7 @@ func TestV2CircuitBreaker_OpenAfterFailures(t *testing.T) {
 		if resp.StatusCode != fiber.StatusInternalServerError {
 			t.Errorf("attempt %d expected 500 got %d", i, resp.StatusCode)
 		}
+		_ = resp.Body.Close()
 	}
 
 	breakerState := breakerManager.GetBreaker(breaker.BreakerTransactionToUser).State().String()

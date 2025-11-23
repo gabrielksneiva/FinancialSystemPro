@@ -3,7 +3,7 @@ package utils_test
 import (
 	"encoding/base64"
 	"financial-system-pro/internal/shared/utils"
-	"os"
+	"os" // retained for Unsetenv
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +16,7 @@ func TestEncryptDecryptPrivateKey_Sucesso(t *testing.T) {
 	for i := range key {
 		key[i] = byte(i)
 	}
-	os.Setenv("ENCRYPTION_KEY", encodeKey(key))
+	t.Setenv("ENCRYPTION_KEY", encodeKey(key))
 
 	plaintext := "MINHA_CHAVE_PRIVADA"
 	enc, err := utils.EncryptPrivateKey(plaintext)
@@ -39,7 +39,7 @@ func TestDecryptPrivateKey_CipherInvalido(t *testing.T) {
 	for i := range key {
 		key[i] = byte(255 - i)
 	}
-	os.Setenv("ENCRYPTION_KEY", encodeKey(key))
+	t.Setenv("ENCRYPTION_KEY", encodeKey(key))
 	_, err := utils.DecryptPrivateKey("invalido!!")
 	assert.Error(t, err)
 }

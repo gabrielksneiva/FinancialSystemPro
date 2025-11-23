@@ -1,7 +1,7 @@
 package config
 
 import (
-	"os"
+	"os" // for Clearenv only
 	"strings"
 	"testing"
 	"time"
@@ -61,14 +61,13 @@ func TestLoadConfigDefaults(t *testing.T) {
 }
 
 func TestLoadConfigFromEnvironment(t *testing.T) {
-	// Set environment variables
-	os.Setenv("SERVER_HOST", "0.0.0.0")
-	os.Setenv("SERVER_PORT", "9000")
-	os.Setenv("ENVIRONMENT", "production")
-	os.Setenv("DATABASE_URL", "postgres://db.example.com:5433/testdb")
-	os.Setenv("REDIS_HOST", "cache.example.com")
-	os.Setenv("JWT_SECRET", "test-secret-key-1234567890123456")
-	defer os.Clearenv()
+	// Set environment variables with automatic cleanup
+	t.Setenv("SERVER_HOST", "0.0.0.0")
+	t.Setenv("SERVER_PORT", "9000")
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("DATABASE_URL", "postgres://db.example.com:5433/testdb")
+	t.Setenv("REDIS_HOST", "cache.example.com")
+	t.Setenv("JWT_SECRET", "test-secret-key-1234567890123456")
 
 	cfg := Load()
 
@@ -91,9 +90,8 @@ func TestLoadConfigFromEnvironment(t *testing.T) {
 }
 
 func TestLoadConfigDurations(t *testing.T) {
-	os.Setenv("SERVER_READ_TIMEOUT", "30s")
-	os.Setenv("SERVER_WRITE_TIMEOUT", "45s")
-	defer os.Clearenv()
+	t.Setenv("SERVER_READ_TIMEOUT", "30s")
+	t.Setenv("SERVER_WRITE_TIMEOUT", "45s")
 
 	cfg := Load()
 
@@ -106,9 +104,8 @@ func TestLoadConfigDurations(t *testing.T) {
 }
 
 func TestLoadConfigBooleans(t *testing.T) {
-	os.Setenv("DB_AUTO_MIGRATE", "false")
-	os.Setenv("ENABLE_METRICS", "false")
-	defer os.Clearenv()
+	t.Setenv("DB_AUTO_MIGRATE", "false")
+	t.Setenv("ENABLE_METRICS", "false")
 
 	cfg := Load()
 
@@ -122,8 +119,7 @@ func TestLoadConfigBooleans(t *testing.T) {
 
 func TestLoadConfigDatabaseDSN(t *testing.T) {
 	dsnValue := "postgres://myuser:mypass@myhost:5432/mydb?sslmode=disable"
-	os.Setenv("DATABASE_URL", dsnValue)
-	defer os.Clearenv()
+	t.Setenv("DATABASE_URL", dsnValue)
 
 	cfg := Load()
 
