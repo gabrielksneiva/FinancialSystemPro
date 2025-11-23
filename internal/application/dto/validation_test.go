@@ -1,4 +1,4 @@
-package http_test
+package dto_test
 
 import (
 	"bytes"

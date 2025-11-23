@@ -1,4 +1,4 @@
-package http_test
+package events_test
 
 import (
 	"context"
