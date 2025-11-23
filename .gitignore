@@ -36,3 +36,10 @@ coverage
 *.exe
 
 financial-system-pro
+
+*.bin
+
+*.bak
+
+coverage*
+*.md

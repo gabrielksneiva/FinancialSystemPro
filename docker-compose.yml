@@ -1,20 +1,27 @@
 version: '3.8'
 
 services:
+  # PostgreSQL - Banco de dados principal
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: financialsystempro_postgres
     restart: always
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: g123
-      POSTGRES_DB: database
+      POSTGRES_DB: financialsystempro
     ports:
       - "5432:5432"
     volumes:
       - financialsystempro_postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d financialsystempro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Redis - Job queue (Asynq) e cache
   redis:
     image: redis:7-alpine
     container_name: financialsystempro_redis
@@ -24,6 +31,31 @@ services:
     volumes:
       - financialsystempro_redis_data:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Aplicação Go (opcional - pode rodar fora do Docker também)
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: financialsystempro_app
+  #   restart: always
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     DATABASE_URL: postgresql://admin:g123@postgres:5432/financialsystempro?sslmode=disable
+  #     REDIS_URL: redis://redis:6379
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   env_file:
+  #     - .env
 
 volumes:
   financialsystempro_postgres_data:

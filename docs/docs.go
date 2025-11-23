@@ -152,7 +152,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/domain.LoginRequest"
+                            "$ref": "#/definitions/dto.LoginRequest"
                         }
                     }
                 ],
@@ -529,7 +529,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/domain.TronTransactionRequest"
+                            "$ref": "#/definitions/entities.TronTransactionRequest"
                         }
                     }
                 ],
@@ -632,7 +632,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/domain.TronWallet"
+                            "$ref": "#/definitions/entities.TronWallet"
                         }
                     },
                     "500": {
@@ -665,7 +665,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/domain.UserRequest"
+                            "$ref": "#/definitions/dto.UserRequest"
                         }
                     }
                 ],
@@ -762,13 +762,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.HealthStatus"
+                            "$ref": "#/definitions/dto.HealthStatus"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/domain.HealthStatus"
+                            "$ref": "#/definitions/dto.HealthStatus"
                         }
                     }
                 }
@@ -836,7 +836,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.HealthStatus": {
+        "dto.HealthStatus": {
             "type": "object",
             "properties": {
                 "services": {
@@ -853,7 +853,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.LoginRequest": {
+        "dto.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -967,7 +967,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.TronTransactionRequest": {
+        "entities.TronTransactionRequest": {
             "type": "object",
             "required": [
                 "amount",
@@ -990,7 +990,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.TronWallet": {
+        "entities.TronWallet": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1004,7 +1004,7 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.UserRequest": {
+        "dto.UserRequest": {
             "type": "object",
             "required": [
                 "email",
