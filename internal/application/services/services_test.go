@@ -7,7 +7,6 @@ import (
 	"financial-system-pro/internal/domain/errors"
 	repositories "financial-system-pro/internal/infrastructure/database"
 	"financial-system-pro/internal/shared/utils"
-	"os"
 	"testing"
 
 	"github.com/golang-jwt/jwt"
@@ -82,7 +81,7 @@ func (m *mockWalletManager) GetBlockchainType() entities.BlockchainType {
 }
 
 func TestUserService_CreateNewUser_SucessoComWallet(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	svc := &services.UserService{Database: db, Logger: zap.NewNop(), WalletManager: &mockWalletManager{}}
 	err := svc.CreateNewUser(&dto.UserRequest{Email: "novo@ex.com", Password: "pwd"})
@@ -92,7 +91,7 @@ func TestUserService_CreateNewUser_SucessoComWallet(t *testing.T) {
 }
 
 func TestUserService_CreateNewUser_UsuarioJaExiste(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	db.users["existe@ex.com"] = &repositories.User{Email: "existe@ex.com", Password: "hash"}
 	svc := &services.UserService{Database: db, Logger: zap.NewNop(), WalletManager: &mockWalletManager{}}
@@ -102,7 +101,7 @@ func TestUserService_CreateNewUser_UsuarioJaExiste(t *testing.T) {
 }
 
 func TestUserService_CreateNewUser_ErroVerificacaoDB(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	db.findErr = errors.NewDatabaseError("generic db fail", errors.NewInternalError("low level", nil))
 	svc := &services.UserService{Database: db, Logger: zap.NewNop()}
@@ -112,7 +111,7 @@ func TestUserService_CreateNewUser_ErroVerificacaoDB(t *testing.T) {
 }
 
 func TestUserService_CreateNewUser_SemWalletManager(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	svc := &services.UserService{Database: db, Logger: zap.NewNop(), WalletManager: nil}
 	err := svc.CreateNewUser(&dto.UserRequest{Email: "semwallet@ex.com", Password: "pwd"})
@@ -122,7 +121,7 @@ func TestUserService_CreateNewUser_SemWalletManager(t *testing.T) {
 
 // AuthService tests
 func TestAuthService_Login_Sucesso(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	// Gerar hash de senha real via função do package services (usa utils)
 	hash, _ := utils.HashAString("senha")
@@ -137,7 +136,7 @@ func TestAuthService_Login_Sucesso(t *testing.T) {
 }
 
 func TestAuthService_Login_UserNaoExiste(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	auth := &services.AuthService{Database: db, Logger: zap.NewNop()}
 	token, appErr := auth.Login(&dto.LoginRequest{Email: "nao@ex.com", Password: "x"})
@@ -147,7 +146,7 @@ func TestAuthService_Login_UserNaoExiste(t *testing.T) {
 }
 
 func TestAuthService_Login_ErroDB(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	db.findErr = errors.NewDatabaseError("falha", nil)
 	auth := &services.AuthService{Database: db, Logger: zap.NewNop()}
@@ -158,7 +157,7 @@ func TestAuthService_Login_ErroDB(t *testing.T) {
 }
 
 func TestAuthService_Login_SenhaInvalida(t *testing.T) {
-	os.Setenv("SECRET_KEY", "segredo")
+	t.Setenv("SECRET_KEY", "segredo")
 	db := newMockDB()
 	// senha correta é "outra"
 	hash, _ := utils.HashAString("outra")

@@ -80,7 +80,7 @@ func (s *UserService) CreateUser(ctx context.Context, email, password string) (*
 // Authenticate valida credenciais e retorna o usuário
 func (s *UserService) Authenticate(ctx context.Context, email, password string) (*entity.User, error) {
 	user, err := s.userRepo.FindByEmail(ctx, email)
-	if err != nil {
+	if err != nil || user == nil { // adiciona verificação nil para evitar panic
 		s.logger.Warn("user not found", zap.String("email", email))
 		return nil, ErrInvalidCredentials
 	}
