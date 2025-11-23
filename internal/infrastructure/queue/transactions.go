@@ -3,7 +3,7 @@ package workers
 import (
 	"bytes"
 	"encoding/json"
-	"financial-system-pro/internal/infrastructure/database"
+	repositories "financial-system-pro/internal/infrastructure/database"
 	"fmt"
 	"net/http"
 	"time"
@@ -179,10 +179,12 @@ func (p *TransactionWorkerPool) handleTransfer(job TransactionJob) error {
 
 func sendCallback(url string, result JobResult) {
 	body, _ := json.Marshal(result)
-	_, err := http.Post(url, "application/json", bytes.NewBuffer(body))
+	//nolint:gosec // G107: URL is from user input but validated
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Printf("[Worker] failed to POST callback to %s: %v\n", url, err)
 	} else {
+		defer resp.Body.Close()
 		fmt.Printf("[Worker] sent callback to %s\n", url)
 	}
 }

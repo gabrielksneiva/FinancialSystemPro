@@ -19,17 +19,17 @@ import (
 )
 
 type TronService struct {
-	testnetRPC      string
-	testnetGRPC     string
-	apiKey          string
-	vaultAddress    string // Endereço do cofre TRON
-	vaultPrivateKey string // Private key do cofre
+	lastRPCErrorAt  time.Time
+	lastRPCError    error
 	httpClient      *http.Client
 	rpcClient       *RPCClient
 	grpcClient      *TronGRPCClient
+	testnetRPC      string
+	testnetGRPC     string
+	apiKey          string
+	vaultAddress    string
+	vaultPrivateKey string
 	mu              sync.RWMutex
-	lastRPCError    error
-	lastRPCErrorAt  time.Time
 }
 
 // NewTronService inicializa a conexão com Tron Testnet
@@ -77,7 +77,7 @@ func (ts *TronService) GetBalance(address string) (int64, error) {
 	// Fazer requisição à API Tron
 	url := fmt.Sprintf("%s/v1/accounts/%s", ts.testnetRPC, address)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return 0, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
@@ -144,7 +144,7 @@ func (ts *TronService) CreateWallet() (*entities.TronWallet, error) {
 	// Usar a API Tron para gerar uma carteira
 	url := fmt.Sprintf("%s/wallet/createaccount", ts.testnetRPC)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
@@ -312,7 +312,7 @@ func (ts *TronService) GetTransactionStatus(txHash string) (string, error) {
 
 	payloadBytes, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, http.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("erro ao criar requisição: %w", err)
 	}
@@ -371,7 +371,7 @@ func (ts *TronService) GetTransaction(txHash string) (interface{}, error) {
 
 	payloadBytes, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
@@ -420,7 +420,7 @@ func (ts *TronService) EstimateGasForTransaction(fromAddress, toAddress string, 
 
 	payloadBytes, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, http.NoBody)
 	if err != nil {
 		return 0, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
@@ -443,9 +443,9 @@ func (ts *TronService) EstimateGasForTransaction(fromAddress, toAddress string, 
 	}
 
 	var apiResp struct {
+		AccountResource  map[string]interface{} `json:"account_resource"`
 		EnergyUsage      int64                  `json:"energy_usage"`
 		EnergyUsageTotal int64                  `json:"energy_usage_total"`
-		AccountResource  map[string]interface{} `json:"account_resource"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
@@ -483,7 +483,7 @@ func (ts *TronService) IsTestnetConnected() bool {
 
 	url := fmt.Sprintf("%s/wallet/getnowblock", ts.testnetRPC)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return false
 	}
@@ -505,7 +505,7 @@ func (ts *TronService) IsTestnetConnected() bool {
 func (ts *TronService) GetNetworkInfo() (map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/wallet/getnowblock", ts.testnetRPC)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
@@ -546,7 +546,7 @@ func (ts *TronService) GetGRPCClient() *TronGRPCClient {
 	return ts.grpcClient
 }
 
-// Close fecha todos os clientes
+// Close fecha todos os clients
 func (ts *TronService) Close() error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
@@ -603,14 +603,14 @@ func (ts *TronService) RecordError(err error) {
 	ts.lastRPCErrorAt = time.Now()
 }
 
-// HealthCheck verifica se Tron RPC está respondendo
+// HealthCheck verifica se Tron RPC está responded
 func (ts *TronService) HealthCheck(ctx context.Context) error {
 	if ts.testnetRPC == "" {
 		return fmt.Errorf("tron rpc endpoint not configured")
 	}
 
 	// Criar um request leve para verificar conexão
-	req, err := http.NewRequestWithContext(ctx, "POST", ts.testnetRPC, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", ts.testnetRPC, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create health check request: %w", err)
 	}
@@ -646,7 +646,7 @@ func (ts *TronService) signTransaction(unsignedTxBytes []byte, privateKeyHex str
 		return nil, fmt.Errorf("erro ao decodificar raw_data_hex: %w", err)
 	}
 
-	// Calcular hash SHA-256 do raw_data
+	// Calculator hash SHA-256 do raw_data
 	hash := sha256.Sum256(rawDataBytes)
 
 	// Converter private key hex para ECDSA private key
@@ -720,9 +720,9 @@ func (ts *TronService) broadcastTransaction(signedTxBytes []byte) error {
 	}
 
 	var broadcastResp struct {
-		Result  bool   `json:"result"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
+		Result  bool   `json:"result"`
 	}
 
 	if err := json.Unmarshal(broadcastBytes, &broadcastResp); err != nil {

@@ -11,11 +11,11 @@ import (
 
 // DepositCompletedEvent é publicado quando um depósito é concluído com sucesso
 type DepositCompletedEvent struct {
+	Metadata map[string]any `json:"metadata"`
 	BaseEvent
-	UserID   uuid.UUID       `json:"user_id"`
-	Amount   decimal.Decimal `json:"amount"`
-	TxHash   string          `json:"tx_hash"`
-	Metadata map[string]any  `json:"metadata"`
+	Amount decimal.Decimal `json:"amount"`
+	TxHash string          `json:"tx_hash"`
+	UserID uuid.UUID       `json:"user_id"`
 }
 
 func NewDepositCompletedEvent(userID uuid.UUID, amount decimal.Decimal, txHash string) DepositCompletedEvent {
@@ -30,11 +30,11 @@ func NewDepositCompletedEvent(userID uuid.UUID, amount decimal.Decimal, txHash s
 
 // WithdrawCompletedEvent é publicado quando um saque é concluído
 type WithdrawCompletedEvent struct {
+	Metadata map[string]any `json:"metadata"`
 	BaseEvent
-	UserID   uuid.UUID       `json:"user_id"`
-	Amount   decimal.Decimal `json:"amount"`
-	TxHash   string          `json:"tx_hash"`
-	Metadata map[string]any  `json:"metadata"`
+	Amount decimal.Decimal `json:"amount"`
+	TxHash string          `json:"tx_hash"`
+	UserID uuid.UUID       `json:"user_id"`
 }
 
 func NewWithdrawCompletedEvent(userID uuid.UUID, amount decimal.Decimal, txHash string) WithdrawCompletedEvent {
@@ -49,12 +49,12 @@ func NewWithdrawCompletedEvent(userID uuid.UUID, amount decimal.Decimal, txHash 
 
 // TransferCompletedEvent é publicado quando uma transferência é concluída
 type TransferCompletedEvent struct {
+	Metadata map[string]any `json:"metadata"`
 	BaseEvent
-	FromUserID uuid.UUID       `json:"from_user_id"`
-	ToUserID   uuid.UUID       `json:"to_user_id"`
 	Amount     decimal.Decimal `json:"amount"`
 	TxHash     string          `json:"tx_hash"`
-	Metadata   map[string]any  `json:"metadata"`
+	FromUserID uuid.UUID       `json:"from_user_id"`
+	ToUserID   uuid.UUID       `json:"to_user_id"`
 }
 
 func NewTransferCompletedEvent(fromUserID, toUserID uuid.UUID, amount decimal.Decimal, txHash string) TransferCompletedEvent {
@@ -70,13 +70,13 @@ func NewTransferCompletedEvent(fromUserID, toUserID uuid.UUID, amount decimal.De
 
 // TransactionFailedEvent é publicado quando uma transação falha
 type TransactionFailedEvent struct {
+	Metadata map[string]any `json:"metadata"`
 	BaseEvent
-	UserID    uuid.UUID       `json:"user_id"`
-	TxType    string          `json:"tx_type"` // "deposit", "withdraw", "transfer"
+	TxType    string          `json:"tx_type"`
 	Amount    decimal.Decimal `json:"amount"`
 	Reason    string          `json:"reason"`
 	ErrorCode string          `json:"error_code"`
-	Metadata  map[string]any  `json:"metadata"`
+	UserID    uuid.UUID       `json:"user_id"`
 }
 
 func NewTransactionFailedEvent(userID uuid.UUID, txType string, amount decimal.Decimal, reason, errorCode string) TransactionFailedEvent {
@@ -95,11 +95,11 @@ func NewTransactionFailedEvent(userID uuid.UUID, txType string, amount decimal.D
 
 // UserCreatedEvent é publicado quando um novo usuário é criado
 type UserCreatedEvent struct {
-	BaseEvent
-	UserID    uuid.UUID `json:"user_id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
+	BaseEvent
+	Email  string    `json:"email"`
+	Name   string    `json:"name"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
 func NewUserCreatedEvent(userID uuid.UUID, email, name string) UserCreatedEvent {
@@ -115,10 +115,10 @@ func NewUserCreatedEvent(userID uuid.UUID, email, name string) UserCreatedEvent 
 // UserAuthenticatedEvent é publicado quando um usuário faz login
 type UserAuthenticatedEvent struct {
 	BaseEvent
-	UserID    uuid.UUID `json:"user_id"`
 	Email     string    `json:"email"`
 	IPAddress string    `json:"ip_address"`
 	UserAgent string    `json:"user_agent"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func NewUserAuthenticatedEvent(userID uuid.UUID, email, ipAddress, userAgent string) UserAuthenticatedEvent {
@@ -136,9 +136,9 @@ func NewUserAuthenticatedEvent(userID uuid.UUID, email, ipAddress, userAgent str
 // WalletCreatedEvent é publicado quando uma nova wallet é criada
 type WalletCreatedEvent struct {
 	BaseEvent
-	UserID         uuid.UUID `json:"user_id"`
 	WalletAddress  string    `json:"wallet_address"`
-	BlockchainType string    `json:"blockchain_type"` // "TRON", "ETH", etc
+	BlockchainType string    `json:"blockchain_type"`
+	UserID         uuid.UUID `json:"user_id"`
 }
 
 func NewWalletCreatedEvent(userID uuid.UUID, walletAddress, blockchainType string) WalletCreatedEvent {
@@ -152,12 +152,12 @@ func NewWalletCreatedEvent(userID uuid.UUID, walletAddress, blockchainType strin
 
 // BlockchainTransactionConfirmedEvent é publicado quando uma tx blockchain é confirmada
 type BlockchainTransactionConfirmedEvent struct {
+	ConfirmedAt time.Time `json:"confirmed_at"`
 	BaseEvent
-	TxHash         string    `json:"tx_hash"`
-	Confirmations  int       `json:"confirmations"`
-	BlockNumber    int64     `json:"block_number"`
-	ConfirmedAt    time.Time `json:"confirmed_at"`
-	BlockchainType string    `json:"blockchain_type"`
+	TxHash         string `json:"tx_hash"`
+	BlockchainType string `json:"blockchain_type"`
+	Confirmations  int    `json:"confirmations"`
+	BlockNumber    int64  `json:"block_number"`
 }
 
 func NewBlockchainTransactionConfirmedEvent(txHash string, confirmations int, blockNumber int64, blockchainType string) BlockchainTransactionConfirmedEvent {

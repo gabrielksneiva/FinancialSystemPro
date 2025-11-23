@@ -27,19 +27,19 @@ const (
 
 // Transaction representa uma transação financeira
 type Transaction struct {
-	ID              uuid.UUID
-	UserID          uuid.UUID
-	Type            TransactionType
-	Amount          decimal.Decimal
-	Status          TransactionStatus
-	TransactionHash string
-	FromAddress     string
-	ToAddress       string
-	CallbackURL     string
-	ErrorMessage    string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CompletedAt     *time.Time
+	FromAddress     string
+	Status          TransactionStatus
+	TransactionHash string
+	ToAddress       string
+	CallbackURL     string
+	ErrorMessage    string
+	Amount          decimal.Decimal
+	Type            TransactionType
+	ID              uuid.UUID
+	UserID          uuid.UUID
 }
 
 // NewTransaction cria uma nova transação

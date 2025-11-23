@@ -3,9 +3,9 @@ package entities
 // TronRPCAccount representa uma conta Tron via RPC
 type TronRPCAccount struct {
 	Address  string `json:"address"`
+	CodeHash string `json:"codeHash"`
 	Balance  int64  `json:"balance"`
 	Nonce    int64  `json:"nonce"`
-	CodeHash string `json:"codeHash"`
 }
 
 // TronRPCTransaction representa uma transação Tron via RPC
@@ -48,20 +48,20 @@ type TronRPCReceipt struct {
 
 // TronNetworkStatus representa o status da rede Tron
 type TronNetworkStatus struct {
-	IsConnected    bool    `json:"is_connected"`
+	NetworkVersion string  `json:"network_version"`
 	LatestBlock    int64   `json:"latest_block"`
 	Timestamp      int64   `json:"timestamp"`
 	ResponseTime   float64 `json:"response_time_ms"`
-	NetworkVersion string  `json:"network_version"`
+	IsConnected    bool    `json:"is_connected"`
 }
 
 // TronGasEstimate representa uma estimativa de gas/energia
 type TronGasEstimate struct {
+	EstimatedCost string `json:"estimated_cost"`
 	StandardGas   int64  `json:"standard_gas"`
 	FastGas       int64  `json:"fast_gas"`
 	InstantGas    int64  `json:"instant_gas"`
 	GasPrice      int64  `json:"gas_price"`
-	EstimatedCost string `json:"estimated_cost"`
 }
 
 // TronContractCall representa uma chamada de contrato
@@ -77,8 +77,8 @@ type TronContractCall struct {
 type TronRPCMethod struct {
 	Name        string
 	Description string
-	Params      []string
 	Returns     string
+	Params      []string
 }
 
 // GetAvailableMethods retorna os métodos RPC disponíveis para Tron

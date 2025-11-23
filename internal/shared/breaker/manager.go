@@ -4,7 +4,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// BreakerManager gerencia circuit breakers para comunicação entre contextos
+// BreakerManager gerencia circuit breakers para comunicação entre contexts
 type BreakerManager struct {
 	breakers map[string]*CircuitBreaker
 	logger   *zap.Logger
@@ -59,7 +59,7 @@ func (bm *BreakerManager) GetAllStates() map[string]string {
 	return states
 }
 
-// Nomes de circuit breakers para comunicação entre contextos
+// Nomes de circuit breakers para comunicação entre contexts
 const (
 	// User Context chamando Transaction Context
 	BreakerUserToTransaction = "user->transaction"

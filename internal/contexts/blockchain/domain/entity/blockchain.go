@@ -16,32 +16,32 @@ const (
 
 // BlockchainTransaction representa uma transação na blockchain
 type BlockchainTransaction struct {
-	ID              uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ConfirmedAt     *time.Time
 	Network         BlockchainNetwork
 	TransactionHash string
 	FromAddress     string
 	ToAddress       string
 	Amount          decimal.Decimal
-	Confirmations   int
 	Status          string
-	BlockNumber     int64
+	Confirmations   int
 	GasUsed         int64
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	ConfirmedAt     *time.Time
+	BlockNumber     int64
+	ID              uuid.UUID
 }
 
 // WalletInfo representa informações de uma wallet na blockchain
 type WalletInfo struct {
-	ID               uuid.UUID
-	UserID           uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 	Network          BlockchainNetwork
 	Address          string
 	EncryptedPrivKey string
 	Balance          decimal.Decimal
 	Nonce            int64
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID               uuid.UUID
+	UserID           uuid.UUID
 }
 
 // NewBlockchainTransaction cria uma nova transação blockchain

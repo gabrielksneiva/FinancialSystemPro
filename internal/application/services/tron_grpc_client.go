@@ -35,6 +35,7 @@ func NewTronGRPCClient(endpoint string) (*TronGRPCClient, error) {
 
 	// Configurar credenciais TLS
 	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: false,
 	}
 	creds := credentials.NewTLS(tlsConfig)
@@ -87,6 +88,7 @@ func (c *TronGRPCClient) Reconnect() error {
 	}
 
 	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: false,
 	}
 	creds := credentials.NewTLS(tlsConfig)

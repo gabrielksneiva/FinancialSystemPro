@@ -8,11 +8,11 @@ import (
 
 // User representa a entidade de usuário no domínio
 type User struct {
-	ID        uuid.UUID
-	Email     string
-	Password  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Email     string
+	Password  string
+	ID        uuid.UUID
 }
 
 // NewUser cria uma nova instância de User
@@ -28,11 +28,11 @@ func NewUser(email, password string) *User {
 
 // Wallet representa a carteira associada ao usuário
 type Wallet struct {
-	ID               uuid.UUID
-	UserID           uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 	Address          string
 	EncryptedPrivKey string
 	Balance          float64
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID               uuid.UUID
+	UserID           uuid.UUID
 }

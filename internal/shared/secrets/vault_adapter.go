@@ -71,7 +71,7 @@ func (m *VaultSecretManager) Store(key string, value string) error {
 func (m *VaultSecretManager) Retrieve(key string) (string, error) {
 	url := fmt.Sprintf("%s/v1/%s/%s", m.vaultURL, m.path, key)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to create vault request: %w", err)
 	}
@@ -116,7 +116,7 @@ func (m *VaultSecretManager) Retrieve(key string) (string, error) {
 func (m *VaultSecretManager) Delete(key string) error {
 	url := fmt.Sprintf("%s/v1/%s/%s", m.vaultURL, m.path, key)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest("DELETE", url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create vault request: %w", err)
 	}

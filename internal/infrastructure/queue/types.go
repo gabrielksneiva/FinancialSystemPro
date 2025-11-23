@@ -1,7 +1,7 @@
 package workers
 
 import (
-	"financial-system-pro/internal/infrastructure/database"
+	repositories "financial-system-pro/internal/infrastructure/database"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -18,30 +18,30 @@ const (
 
 type TransactionJob struct {
 	Type        JobType
-	Account     uuid.UUID
 	Amount      decimal.Decimal
 	ToEmail     string
 	CallbackURL string
+	Account     uuid.UUID
 	JobID       uuid.UUID
 }
 
 // TronTxConfirmJob monitora o status de uma transação TRON
 type TronTxConfirmJob struct {
 	Type          JobType
-	UserID        uuid.UUID
-	TransactionID uuid.UUID
 	TronTxHash    string
 	CallbackURL   string
-	CheckInterval int // segundos entre verificações
-	MaxChecks     int // máximo de verificações antes de desistir
+	CheckInterval int
+	MaxChecks     int
+	UserID        uuid.UUID
+	TransactionID uuid.UUID
 	JobID         uuid.UUID
 }
 
 type TransactionWorkerPool struct {
 	DB      *repositories.NewDatabase
 	Jobs    chan TransactionJob
-	Workers int
 	quit    chan struct{}
+	Workers int
 }
 
 type JobResult struct {

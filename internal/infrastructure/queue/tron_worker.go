@@ -3,7 +3,7 @@ package workers
 import (
 	"bytes"
 	"encoding/json"
-	"financial-system-pro/internal/infrastructure/database"
+	repositories "financial-system-pro/internal/infrastructure/database"
 	"fmt"
 	"net/http"
 	"time"
@@ -19,12 +19,12 @@ type TronAPI interface {
 
 // TronWorkerPool gerencia workers que monitoram transações TRON
 type TronWorkerPool struct {
-	DB      *repositories.NewDatabase
 	TronSvc TronAPI
+	DB      *repositories.NewDatabase
 	Jobs    chan TronTxConfirmJob
-	Workers int
 	quit    chan struct{}
 	logger  *zap.Logger
+	Workers int
 }
 
 // NewTronWorkerPool cria um novo pool de workers para TRON

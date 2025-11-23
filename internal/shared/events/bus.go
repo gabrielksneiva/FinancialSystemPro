@@ -30,8 +30,8 @@ type Bus interface {
 // Use este para começar, depois migre para RabbitMQ/Kafka se necessário
 type InMemoryBus struct {
 	handlers map[string][]Handler
-	mu       sync.RWMutex
 	logger   *zap.Logger
+	mu       sync.RWMutex
 }
 
 // NewInMemoryBus cria uma nova instância do event bus

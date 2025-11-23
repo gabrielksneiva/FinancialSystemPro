@@ -9,40 +9,40 @@ import (
 // Config contém todas as configurações da aplicação
 type Config struct {
 	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
 	Tron     TronConfig
+	Database DatabaseConfig
+	JWT      JWTConfig
 	App      AppConfig
+	Redis    RedisConfig
 }
 
 // ServerConfig configuração do servidor HTTP
 type ServerConfig struct {
 	Host           string
+	Environment    string
 	Port           int
 	ReadTimeout    time.Duration
 	WriteTimeout   time.Duration
 	IdleTimeout    time.Duration
 	MaxHeaderBytes int
-	Environment    string // development, staging, production
 }
 
 // DatabaseConfig configuração do PostgreSQL
 type DatabaseConfig struct {
 	DSN             string
+	LogLevel        string
+	SSLMode         string
 	MaxOpenConns    int
 	MaxIdleConns    int
 	MaxConnLifetime time.Duration
-	LogLevel        string
-	SSLMode         string
 	AutoMigrate     bool
 }
 
 // RedisConfig configuração do Redis
 type RedisConfig struct {
 	Host         string
-	Port         int
 	Password     string
+	Port         int
 	DB           int
 	PoolSize     int
 	ReadTimeout  time.Duration
@@ -53,8 +53,8 @@ type RedisConfig struct {
 // JWTConfig configuração de autenticação JWT
 type JWTConfig struct {
 	Secret                string
-	ExpirationTime        time.Duration
 	RefreshSecret         string
+	ExpirationTime        time.Duration
 	RefreshExpirationTime time.Duration
 }
 
@@ -64,8 +64,8 @@ type TronConfig struct {
 	TestnetRPC     string
 	MainnetGRPC    string
 	TestnetGRPC    string
+	Network        string
 	Timeout        time.Duration
-	Network        string // mainnet, testnet
 	DefaultGasUsed int64
 }
 
@@ -73,10 +73,10 @@ type TronConfig struct {
 type AppConfig struct {
 	Name             string
 	Version          string
-	LogLevel         string // debug, info, warn, error
-	EnableCORS       bool
+	LogLevel         string
 	CORSAllowOrigins string
 	RateLimitPerMin  int
+	EnableCORS       bool
 	EnableMetrics    bool
 }
 

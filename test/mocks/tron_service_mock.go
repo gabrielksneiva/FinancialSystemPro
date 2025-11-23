@@ -10,9 +10,9 @@ import (
 
 // MockTronService is a mock implementation of TronService
 type MockTronService struct {
-	mock.Mock
-	IsConnected    bool
 	ValidAddresses map[string]bool
+	mock.Mock
+	IsConnected bool
 }
 
 func NewMockTronService() *MockTronService {

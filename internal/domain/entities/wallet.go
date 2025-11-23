@@ -22,11 +22,11 @@ type WalletInfo struct {
 
 // GeneratedWallet é o resultado da geração de uma carteira
 type GeneratedWallet struct {
-	UserID     uuid.UUID      `json:"user_id"`
 	Address    string         `json:"address"`
 	PublicKey  string         `json:"public_key"`
 	Blockchain BlockchainType `json:"blockchain"`
 	CreatedAt  int64          `json:"created_at"`
+	UserID     uuid.UUID      `json:"user_id"`
 }
 
 // WalletManager interface para gerenciar carteiras de diferentes blockchains

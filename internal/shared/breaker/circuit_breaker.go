@@ -11,18 +11,18 @@ import (
 // CircuitBreaker wrapper para gobreaker com logging
 type CircuitBreaker struct {
 	breaker *gobreaker.CircuitBreaker
-	name    string
 	logger  *zap.Logger
+	name    string
 }
 
 // Settings configurações do circuit breaker
 type Settings struct {
-	Name          string
-	MaxRequests   uint32
-	Interval      time.Duration
-	Timeout       time.Duration
 	ReadyToTrip   func(counts gobreaker.Counts) bool
 	OnStateChange func(name string, from gobreaker.State, to gobreaker.State)
+	Name          string
+	Interval      time.Duration
+	Timeout       time.Duration
+	MaxRequests   uint32
 }
 
 // NewCircuitBreaker cria um novo circuit breaker

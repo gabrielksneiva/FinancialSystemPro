@@ -1,7 +1,7 @@
 package http
 
 import (
-	_ "financial-system-pro/docs"
+	_ "financial-system-pro/docs" // Swagger docs
 	"financial-system-pro/internal/application/services"
 	workers "financial-system-pro/internal/infrastructure/queue"
 	"financial-system-pro/internal/shared/breaker"

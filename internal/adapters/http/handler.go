@@ -310,7 +310,7 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 }
 
 // CreateUser godoc
-// @Summary      Transfere valor para outra conta
+// @Summary      Transferred valor para outra conta
 // @Description  Endpoint para transferir valor para outra conta
 // @Tags         Transactions
 // @Accept       json

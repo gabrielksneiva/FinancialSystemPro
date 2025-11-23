@@ -14,9 +14,9 @@ import (
 // CacheManager gerencia cache em Redis para operações críticas
 type CacheManager struct {
 	client  *redis.Client
-	ttl     time.Duration
 	logger  *zap.Logger
 	breaker *CircuitBreaker
+	ttl     time.Duration
 }
 
 // NewCacheManager cria um gerenciador de cache

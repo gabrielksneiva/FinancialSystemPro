@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs build run migrate clean test
+.PHONY: help up down restart logs build run migrate clean test fmt
 
 help: ## Mostra este help
 	@echo "Comandos disponíveis:"
@@ -28,6 +28,14 @@ logs-redis: ## Logs do Redis
 build: ## Compila a aplicação Go
 	go build -o app .
 
+fmt: ## Formata código com gofmt e goimports
+	gofmt -w .
+	@command -v goimports >/dev/null 2>&1 || { echo "Instalando goimports..."; go install golang.org/x/tools/cmd/goimports@latest; }
+	goimports -w .
+
+vet: ## Executa go vet
+	go vet ./...
+
 run: ## Roda a aplicação (certifique-se que PostgreSQL e Redis estão up)
 	./app
 
@@ -46,8 +54,23 @@ clean: ## Remove containers e volumes
 test: ## Roda os testes
 	go test -v ./...
 
+test-coverage: ## Roda testes com cobertura
+	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -func=coverage.out | tail -n 1
+
 test-wallet: ## Testa geração de carteira TRON
 	go test -v ./services -run TestGenerateTronAddress
+
+lint: ## Roda golangci-lint localmente
+	@command -v golangci-lint >/dev/null 2>&1 || { echo "❌ golangci-lint não instalado. Instalando..."; go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; }
+	golangci-lint run --timeout=5m
+
+lint-fix: ## Roda golangci-lint e tenta corrigir automaticamente
+	@command -v golangci-lint >/dev/null 2>&1 || { echo "❌ golangci-lint não instalado. Instalando..."; go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; }
+	golangci-lint run --fix --timeout=5m
+
+ci-local: lint test-coverage ## Simula CI localmente (lint + testes com cobertura)
+	@echo "✅ CI local passou!"
 
 psql: ## Conecta no PostgreSQL via psql
 	docker-compose exec postgres psql -U admin -d financialsystempro

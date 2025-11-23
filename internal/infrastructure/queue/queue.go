@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"financial-system-pro/internal/infrastructure/database"
+	repositories "financial-system-pro/internal/infrastructure/database"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -20,8 +20,8 @@ type QueueManager struct {
 	client   *asynq.Client
 	server   *asynq.Server
 	logger   *zap.Logger
-	redisURL string
 	database *repositories.NewDatabase
+	redisURL string
 }
 
 // Tipos de tarefas

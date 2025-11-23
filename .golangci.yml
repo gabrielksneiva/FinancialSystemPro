@@ -1,0 +1,93 @@
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck      # Verifica erros não tratados
+    - gosimple      # Simplificações de código
+    - govet         # Go vet padrão
+    - ineffassign   # Detecta atribuições ineficazes
+    - staticcheck   # Análise estática avançada
+    - unused        # Verifica código não usado
+    - gosec         # Segurança
+    - bodyclose     # HTTP response body deve ser fechado
+  disable:
+    - gofmt         # Muito restritivo
+    - goimports     # Muito restritivo  
+    - misspell      # Português causa falsos positivos
+    - revive        # Muitos falsos positivos
+    - gocritic      # Muito verboso
+    - copyloopvar   # Go 1.22+ já resolve
+
+linters-settings:
+  errcheck:
+    check-blank: false  # Permitir _ = 
+    check-type-assertions: false
+    exclude-functions:
+      - (io.Closer).Close
+      - (*go.uber.org/zap.Logger).Sync
+  
+  govet:
+    enable-all: false
+    enable:
+      - atomic
+      - bools
+      - buildtag
+      - errorsas
+      - httpresponse
+      - loopclosure
+      - lostcancel
+      - nilfunc
+      - printf
+      - shift
+      - stdmethods
+      - structtag
+      - tests
+      - unmarshal
+      - unreachable
+      - unsafeptr
+      - unusedresult
+    disable:
+      - shadow
+      - fieldalignment  # Muito restritivo
+  
+  staticcheck:
+    checks: ["all", "-SA1019"] # SA1019: deprecated, mas às vezes necessário
+  
+  gosec:
+    excludes:
+      - G104 # Audit errors not checked (já temos errcheck)
+  
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+    disabled-checks:
+      - unnamedResult
+      - hugeParam
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - gocritic
+    
+    # Ignore deprecated warnings for specific dependencies
+    - text: "SA1019:"
+      linters:
+        - staticcheck
+      path: "tron_grpc_client.go"
+  
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: true
+  
+output:
+  formats:
+    - format: colored-line-number

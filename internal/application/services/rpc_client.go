@@ -21,23 +21,23 @@ type JSONRPCRequest struct {
 
 // JSONRPCResponse representa uma resposta JSON-RPC 2.0
 type JSONRPCResponse struct {
+	Error   *JSONRPCError   `json:"error"`
 	JSONRPC string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result"`
-	Error   *JSONRPCError   `json:"error"`
 	ID      int64           `json:"id"`
 }
 
 // JSONRPCError representa um erro JSON-RPC
 type JSONRPCError struct {
-	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    string `json:"data,omitempty"`
+	Code    int    `json:"code"`
 }
 
 // RPCClient representa um cliente RPC com pool de conexões
 type RPCClient struct {
-	endpoint   string
 	httpClient *http.Client
+	endpoint   string
 	requestID  int64
 	mu         sync.Mutex
 }
@@ -274,7 +274,9 @@ func (c *RPCClient) GetGasPrice(ctx context.Context) (int64, error) {
 	}
 
 	var gasPrice int64
-	fmt.Sscanf(gasPriceStr, "%x", &gasPrice)
+	if _, err := fmt.Sscanf(gasPriceStr, "%x", &gasPrice); err != nil {
+		return 0, fmt.Errorf("erro ao converter preço do gas de hex: %w", err)
+	}
 	return gasPrice, nil
 }
 

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/hex"
@@ -90,7 +91,7 @@ func (twm *TronWalletManager) ValidateAddress(address string) bool {
 	hash := sha256.Sum256(decoded[:21])
 	hash = sha256.Sum256(hash[:])
 
-	return string(hash[:4]) == string(decoded[21:])
+	return bytes.Equal(hash[:4], decoded[21:])
 }
 
 // GetBlockchainType retorna o tipo de blockchain
@@ -118,7 +119,7 @@ func (twm *TronWalletManager) generateTronAddress(pubKeyBytes []byte) string {
 	// Adicionar versão TRON (0x41 para mainnet/testnet)
 	versionedAddress := append([]byte{0x41}, address20...)
 
-	// Calcular checksum (double SHA-256)
+	// Calculator checksum (double SHA-256)
 	checksum := sha256.Sum256(versionedAddress)
 	checksum = sha256.Sum256(checksum[:])
 

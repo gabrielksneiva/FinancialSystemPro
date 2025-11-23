@@ -2,16 +2,16 @@ package dto
 
 // HealthStatus representa o status de cada componente
 type HealthStatus struct {
+	Services map[string]string `json:"services"`
 	Status   string            `json:"status"`
 	Uptime   int64             `json:"uptime_seconds"`
-	Services map[string]string `json:"services"`
 }
 
 // ProbeResponse resposta de probe
 type ProbeResponse struct {
+	Reason string `json:"reason,omitempty"`
 	Ready  bool   `json:"ready,omitempty"`
 	Alive  bool   `json:"alive,omitempty"`
-	Reason string `json:"reason,omitempty"`
 }
 
 // MetricsResponse resposta com métricas

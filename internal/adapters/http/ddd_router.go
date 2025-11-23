@@ -1,7 +1,7 @@
 package http
 
 import (
-	_ "financial-system-pro/docs"
+	_ "financial-system-pro/docs" // Swagger docs
 	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
 	userSvc "financial-system-pro/internal/contexts/user/application/service"
 	"financial-system-pro/internal/shared/breaker"

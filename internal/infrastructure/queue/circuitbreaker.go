@@ -19,17 +19,15 @@ const (
 
 // CircuitBreaker implementa padrão circuit breaker para Redis
 type CircuitBreaker struct {
-	state           CircuitBreakerState
-	failureCount    int
-	successCount    int
-	lastFailureTime time.Time
-	mu              sync.RWMutex
-	logger          *zap.Logger
-
-	// Configuração
-	failureThreshold int           // Falhas antes de abrir
-	resetTimeout     time.Duration // Tempo antes de tentar half-open
-	successThreshold int           // Sucessos para fechar novamente
+	lastFailureTime  time.Time
+	logger           *zap.Logger
+	state            CircuitBreakerState
+	failureCount     int
+	successCount     int
+	failureThreshold int
+	resetTimeout     time.Duration
+	successThreshold int
+	mu               sync.RWMutex
 }
 
 // NewCircuitBreaker cria um novo circuit breaker

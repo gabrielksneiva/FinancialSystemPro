@@ -11,19 +11,14 @@ import (
 
 // Metrics coleta métricas da aplicação
 type Metrics struct {
-	// Transações
-	DepositCount  int64
-	WithdrawCount int64
-	TransferCount int64
-	FailureCount  int64
-
-	// Performance
-	TotalRequestTime int64 // nanosegundos
+	LastUpdated      time.Time
+	DepositCount     int64
+	WithdrawCount    int64
+	TransferCount    int64
+	FailureCount     int64
+	TotalRequestTime int64
 	RequestCount     int64
-
-	// Sistema
-	LastUpdated time.Time
-	mu          sync.RWMutex
+	mu               sync.RWMutex
 }
 
 // GlobalMetrics é a instância global de métricas exportada para testes

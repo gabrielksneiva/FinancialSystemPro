@@ -13,10 +13,10 @@ import (
 // Para produção, usar Redis rate limiting é melhor
 type RateLimiter struct {
 	requests map[string][]time.Time
-	limits   map[string]int // max requests
+	limits   map[string]int
 	windows  map[string]time.Duration
-	mu       sync.RWMutex
 	logger   *zap.Logger
+	mu       sync.RWMutex
 }
 
 // NewRateLimiter cria um novo rate limiter

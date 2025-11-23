@@ -11,9 +11,9 @@ import (
 
 // MockDatabase is a mock implementation of the database interface
 type MockDatabase struct {
-	mock.Mock
-	ShouldError    bool
 	MockWalletInfo *r.WalletInfo
+	mock.Mock
+	ShouldError bool
 }
 
 func NewMockDatabase() *MockDatabase {

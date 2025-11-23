@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// TestCircuitBreakerIntegration testa integração do circuit breaker entre contextos
+// TestCircuitBreakerIntegration testa integração do circuit breaker entre contexts
 func TestCircuitBreakerIntegration(t *testing.T) {
 	logger, _ := zap.NewProduction()
 	defer func() { _ = logger.Sync() }()
@@ -83,10 +83,10 @@ func TestCircuitBreakerIntegration(t *testing.T) {
 	})
 }
 
-// TestEventBusIntegration testa integração do event bus entre contextos
+// TestEventBusIntegration testa integração do event bus entre contexts
 func TestEventBusIntegration(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	eventBus := events.NewInMemoryBus(logger)
 	require.NotNil(t, eventBus)
@@ -96,10 +96,10 @@ func TestEventBusIntegration(t *testing.T) {
 	logger.Info("Event Bus is available and integrated with the application")
 }
 
-// TestCrossContextCommunicationPattern testa padrão de comunicação entre contextos
+// TestCrossContextCommunicationPattern testa padrão de comunicação entre contexts
 func TestCrossContextCommunicationPattern(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	breakerManager := breaker.NewBreakerManager(logger)
 
@@ -141,7 +141,7 @@ func TestCrossContextCommunicationPattern(t *testing.T) {
 		logger.Info("Blockchain communication pattern completed successfully")
 	})
 
-	t.Run("Isolamento de falhas entre contextos", func(t *testing.T) {
+	t.Run("Isolamento de falhas entre contexts", func(t *testing.T) {
 		failingBreaker := breakerManager.GetBreaker("FailingBreaker")
 		healthyBreaker := breakerManager.GetBreaker("HealthyBreaker")
 

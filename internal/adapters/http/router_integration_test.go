@@ -61,6 +61,7 @@ func TestAPIv1RoutesExist(t *testing.T) {
 			t.Errorf("Error testing %s %s: %v", test.method, test.path, err)
 			continue
 		}
+		defer resp.Body.Close()
 
 		if resp.StatusCode != test.expected {
 			t.Errorf("%s %s: expected status %d, got %d", test.method, test.path, test.expected, resp.StatusCode)
@@ -83,6 +84,7 @@ func TestHealthCheckRouteUnversioned(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error testing GET /health: %v", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("GET /health: expected status %d, got %d", http.StatusOK, resp.StatusCode)
@@ -94,6 +96,7 @@ func TestHealthCheckRouteUnversioned(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error testing GET /api/v1/health: %v", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("GET /api/v1/health: expected status %d, got %d", http.StatusNotFound, resp.StatusCode)

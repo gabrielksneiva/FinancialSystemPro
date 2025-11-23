@@ -257,7 +257,7 @@ func (h *DDDTransactionHandler) Balance(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get balance"})
 	}
 
-	// Calcular saldo a partir do histórico
+	// Calculator saldo a partir do histórico
 	var balance decimal.Decimal
 	for _, tx := range history {
 		if tx.Status == "completed" {

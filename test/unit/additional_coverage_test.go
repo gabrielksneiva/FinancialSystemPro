@@ -123,8 +123,8 @@ func TestValidateRequest_MultipleScenarios(t *testing.T) {
 	type ComplexRequest struct {
 		Email    string   `json:"email" validate:"required,email"`
 		Password string   `json:"password" validate:"required,min=8,max=100"`
-		Age      int      `json:"age" validate:"required,gte=18,lte=120"`
 		Tags     []string `json:"tags" validate:"omitempty,dive,min=1"`
+		Age      int      `json:"age" validate:"required,gte=18,lte=120"`
 	}
 
 	app := fiber.New()

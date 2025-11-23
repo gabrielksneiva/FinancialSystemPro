@@ -15,7 +15,7 @@ import (
 
 func TestEventBusDepositCompleted(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	bus := events.NewInMemoryBus(logger)
 	handlers := services.NewEventHandlers(logger)

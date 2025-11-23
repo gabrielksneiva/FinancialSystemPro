@@ -36,10 +36,10 @@ const (
 
 // AppError é o tipo de erro padrão da aplicação
 type AppError struct {
+	Details    map[string]interface{} `json:"details,omitempty"`
 	Code       string                 `json:"code"`
 	Message    string                 `json:"message"`
 	StatusCode int                    `json:"-"`
-	Details    map[string]interface{} `json:"details,omitempty"`
 }
 
 // Error implementa a interface error

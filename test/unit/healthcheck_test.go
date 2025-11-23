@@ -23,7 +23,7 @@ func TestLivenessProbe(t *testing.T) {
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
 	var response map[string]bool
-	json.NewDecoder(resp.Body).Decode(&response)
+	_ = json.NewDecoder(resp.Body).Decode(&response)
 	assert.True(t, response["alive"])
 }
 

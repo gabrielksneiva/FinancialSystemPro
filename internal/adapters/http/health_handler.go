@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// HealthCheck verifica saúde de todos os componentes
+// HealthCheck verifica saúde de todos os components
 // @Summary      Health check completo
 // @Description  Verifica status de DB, Redis e Tron RPC
 // @Tags         System

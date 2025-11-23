@@ -8,8 +8,8 @@ import (
 
 // MockWorkerPool is a mock implementation of worker pool
 type MockWorkerPool struct {
-	mock.Mock
 	Jobs chan queue.TransactionJob
+	mock.Mock
 }
 
 func NewMockWorkerPool() *MockWorkerPool {
@@ -33,8 +33,8 @@ func (m *MockWorkerPool) SubmitJob(job queue.TransactionJob) error {
 
 // MockTronWorkerPool is a mock implementation of TRON worker pool
 type MockTronWorkerPool struct {
-	mock.Mock
 	Jobs chan queue.TronTxConfirmJob
+	mock.Mock
 }
 
 func NewMockTronWorkerPool() *MockTronWorkerPool {
