@@ -21,7 +21,7 @@ import (
 func TestWithdraw_Success(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.WithdrawFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.WithdrawFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		return &services.ServiceResponse{
 			StatusCode: 200,
 			Body:       map[string]interface{}{"message": "Withdrawal processed"},
@@ -97,7 +97,7 @@ func TestWithdraw_ZeroAmount(t *testing.T) {
 func TestWithdraw_ServiceError(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.WithdrawFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.WithdrawFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		return nil, errors.New("insufficient balance")
 	}
 
@@ -124,7 +124,7 @@ func TestWithdraw_ServiceError(t *testing.T) {
 func TestWithdraw_TronType(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.WithdrawTronFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.WithdrawTronFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		return &services.ServiceResponse{
 			StatusCode: 200,
 			Body:       map[string]interface{}{"message": "TRON withdrawal processed"},

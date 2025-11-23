@@ -1,10 +1,8 @@
 package http
 
 import (
-	"context"
 	"financial-system-pro/internal/application/dto"
-	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
-	userSvc "financial-system-pro/internal/contexts/user/application/service"
+	"financial-system-pro/internal/application/services"
 	"financial-system-pro/internal/shared/breaker"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,16 +13,16 @@ import (
 
 // DDDTransactionHandler gerencia as rotas de transações do DDD Transaction Context
 type DDDTransactionHandler struct {
-	transactionService *txnSvc.TransactionService
-	userService        *userSvc.UserService
+	transactionService services.TransactionServiceInterface
+	userService        services.UserServiceInterface
 	logger             *zap.Logger
 	breakerManager     *breaker.BreakerManager
 }
 
 // NewDDDTransactionHandler cria uma nova instância do DDDTransactionHandler
 func NewDDDTransactionHandler(
-	transactionService *txnSvc.TransactionService,
-	userService *userSvc.UserService,
+	transactionService services.TransactionServiceInterface,
+	userService services.UserServiceInterface,
 	logger *zap.Logger,
 	breakerManager *breaker.BreakerManager,
 ) *DDDTransactionHandler {
@@ -81,7 +79,7 @@ func (h *DDDTransactionHandler) Deposit(ctx *fiber.Ctx) error {
 
 	// Processar depósito com circuit breaker
 	_, err = breaker.Execute(func() (interface{}, error) {
-		return nil, h.transactionService.ProcessDeposit(context.Background(), userID, amount, depositReq.CallbackURL)
+		return h.transactionService.Deposit(userID.String(), amount, depositReq.CallbackURL)
 	})
 
 	// Initialize audit helper
@@ -158,7 +156,7 @@ func (h *DDDTransactionHandler) Withdraw(ctx *fiber.Ctx) error {
 
 	// Processar saque com circuit breaker
 	_, err = breaker.Execute(func() (interface{}, error) {
-		return nil, h.transactionService.ProcessWithdraw(context.Background(), userID, amount)
+		return h.transactionService.Withdraw(userID.String(), amount, "")
 	})
 
 	// Initialize audit helper
@@ -245,31 +243,18 @@ func (h *DDDTransactionHandler) Balance(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
-	userID, err := uuid.Parse(userIDStr)
+	// Apenas obter saldo direto do serviço (nova assinatura)
+	balance, err := h.transactionService.GetBalance(userIDStr)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID format"})
-	}
-
-	// Chamar o serviço DDD TransactionService
-	history, err := h.transactionService.GetTransactionHistory(context.Background(), userID)
-	if err != nil {
-		h.logger.Error("failed to get transaction history", zap.Error(err), zap.String("user_id", userID.String()))
+		h.logger.Error("failed to get balance", zap.Error(err), zap.String("user_id", userIDStr))
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get balance"})
 	}
 
-	// Calculator saldo a partir do histórico
-	var balance decimal.Decimal
-	for _, tx := range history {
-		if tx.Status == "completed" {
-			balance = balance.Add(tx.Amount)
-		}
-	}
-
-	h.logger.Info("balance queried successfully", zap.String("user_id", userID.String()), zap.String("balance", balance.String()))
+	h.logger.Info("balance queried successfully", zap.String("user_id", userIDStr), zap.String("balance", balance.String()))
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"balance": balance.String(),
-		"user_id": userID.String(),
+		"user_id": userIDStr,
 	})
 }
 
@@ -285,28 +270,25 @@ func (h *DDDTransactionHandler) GetUserWallet(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
-	userID, err := uuid.Parse(userIDStr)
+	uid, err := uuid.Parse(userIDStr)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID format"})
 	}
 
-	// Chamar o serviço DDD UserService para obter a carteira
-	wallet, err := h.userService.GetUserWallet(context.Background(), userID)
+	walletInfo, err := h.transactionService.GetWalletInfo(uid)
 	if err != nil {
-		h.logger.Error("failed to get user wallet", zap.Error(err), zap.String("user_id", userID.String()))
+		h.logger.Error("failed to get user wallet", zap.Error(err), zap.String("user_id", uid.String()))
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get wallet"})
 	}
-
-	if wallet == nil {
+	if walletInfo == nil {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Wallet not found"})
 	}
 
-	h.logger.Info("wallet queried successfully", zap.String("user_id", userID.String()), zap.String("wallet_address", wallet.Address))
+	h.logger.Info("wallet queried successfully", zap.String("user_id", uid.String()), zap.String("wallet_address", walletInfo.TronAddress))
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"id":      wallet.ID,
-		"user_id": wallet.UserID,
-		"address": wallet.Address,
-		"balance": wallet.Balance,
+		"wallet_address": walletInfo.TronAddress,
+		"blockchain":     "tron",
+		"user_id":        uid.String(),
 	})
 }

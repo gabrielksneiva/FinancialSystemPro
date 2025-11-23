@@ -11,10 +11,11 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-var privateKey = []byte(os.Getenv("SECRET_KEY"))
+// getPrivateKey retrieves the current SECRET_KEY from environment at call time.
+func getPrivateKey() []byte { return []byte(os.Getenv("SECRET_KEY")) }
 
 func HashAString(stringToHash string) (string, error) {
-	h := hmac.New(sha256.New, privateKey)
+	h := hmac.New(sha256.New, getPrivateKey())
 
 	_, err := h.Write([]byte(stringToHash))
 	if err != nil {
@@ -42,14 +43,15 @@ func CreateJWTToken(claims jwt.MapClaims) (string, error) {
 	claims["exp"] = time.Now().Add(time.Duration(expiration) * time.Second).Unix()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(privateKey)
+	return token.SignedString(getPrivateKey())
 }
 
 func DecodeJWTToken(tokenString string) (*jwt.Token, error) {
+	key := getPrivateKey()
 	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return privateKey, nil
+		return key, nil
 	})
 }

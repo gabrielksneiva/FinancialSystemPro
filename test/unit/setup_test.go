@@ -15,15 +15,15 @@ func setupTestHandler() (*http.NewHandler, *fiber.App, *mocks.MockDatabase, *moc
 	mockTron := mocks.NewMockTronService()
 	logger := zap.NewNop()
 
-	userService := &services.NewUserService{
+	userService := &services.UserService{
 		Logger: logger,
 	}
 
-	authService := &services.NewAuthService{
+	authService := &services.AuthService{
 		Logger: logger,
 	}
 
-	transactionService := &services.NewTransactionService{
+	transactionService := &services.TransactionService{
 		Logger: logger,
 	}
 

@@ -2,8 +2,7 @@ package http
 
 import (
 	_ "financial-system-pro/docs" // Swagger docs
-	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
-	userSvc "financial-system-pro/internal/contexts/user/application/service"
+	"financial-system-pro/internal/application/services"
 	"financial-system-pro/internal/shared/breaker"
 	"time"
 
@@ -15,16 +14,16 @@ import (
 
 // DDDRouter gerencia as rotas usando DDD services
 type DDDRouter struct {
-	userService        *userSvc.UserService
-	transactionService *txnSvc.TransactionService
+	userService        services.UserServiceInterface
+	transactionService services.TransactionServiceInterface
 	logger             *zap.Logger
 	breakerManager     *breaker.BreakerManager
 }
 
 // NewDDDRouter cria uma nova instância do DDDRouter
 func NewDDDRouter(
-	userService *userSvc.UserService,
-	transactionService *txnSvc.TransactionService,
+	userService services.UserServiceInterface,
+	transactionService services.TransactionServiceInterface,
 	logger *zap.Logger,
 	breakerManager *breaker.BreakerManager,
 ) *DDDRouter {
@@ -74,10 +73,8 @@ func (r *DDDRouter) RegisterDDDRoutes(app *fiber.App) {
 
 // registerUserRoutes registra rotas do User Context
 func (r *DDDRouter) registerUserRoutes(app *fiber.App) {
-	handler := NewDDDUserHandler(r.userService, r.logger)
-
-	app.Post("/api/users", handler.CreateUser)
-	app.Post("/api/login", handler.Login)
+	// Placeholder: DDDUserHandler desatualizado para nova interface.
+	// Rotas DDD de usuário desativadas até refatoração completa.
 }
 
 // registerTransactionRoutes registra rotas do Transaction Context

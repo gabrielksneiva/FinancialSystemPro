@@ -2,8 +2,8 @@ package http
 
 import (
 	"financial-system-pro/internal/application/services"
-	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
-	userSvc "financial-system-pro/internal/contexts/user/application/service"
+	txnDDD "financial-system-pro/internal/contexts/transaction/application/service"
+	userDDD "financial-system-pro/internal/contexts/user/application/service"
 	"financial-system-pro/internal/infrastructure/config/container"
 	workers "financial-system-pro/internal/infrastructure/queue"
 	"financial-system-pro/internal/shared/breaker"
@@ -16,23 +16,31 @@ import (
 // Mantém suporte ao legacy services
 func RegisterRoutes(
 	app *fiber.App,
-	userService *services.NewUserService,
-	authService *services.NewAuthService,
-	transactionService *services.NewTransactionService,
+	userService *services.UserService,
+	authService *services.AuthService,
+	transactionService *services.TransactionService,
 	tronService *services.TronService,
 	logger *zap.Logger,
 	qm *workers.QueueManager,
 	breakerManager *breaker.BreakerManager,
+	dddUserService *userDDD.UserService,
+	dddTransactionService *txnDDD.TransactionService,
 ) {
+	// Legacy rotas
 	router(app, userService, authService, transactionService, tronService, logger, qm, breakerManager)
+	// Rotas v2 baseadas nos bounded contexts DDD
+	if dddUserService != nil && dddTransactionService != nil {
+		registerV2DDDRoutes(app, dddUserService, dddTransactionService, logger, breakerManager)
+	}
 }
 
 // RegisterDDDRoutes é a função para registrar apenas rotas DDD
 // Usada quando temos os DDD services disponíveis
+// Mantida para compat legacy (não usada no fluxo v2 novo)
 func RegisterDDDRoutes(
 	app *fiber.App,
-	userService *userSvc.UserService,
-	transactionService *txnSvc.TransactionService,
+	userService services.UserServiceInterface,
+	transactionService services.TransactionServiceInterface,
 	logger *zap.Logger,
 	breakerManager *breaker.BreakerManager,
 ) {

@@ -7,7 +7,6 @@ import (
 	"financial-system-pro/internal/domain/errors"
 	r "financial-system-pro/internal/infrastructure/database"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -17,7 +16,7 @@ import (
 // UserServiceInterface define os métodos do serviço de usuários
 type UserServiceInterface interface {
 	CreateNewUser(userRequest *dto.UserRequest) *errors.AppError
-	GetDatabase() *r.NewDatabase
+	GetDatabase() DatabasePort
 }
 
 // AuthServiceInterface define os métodos do serviço de autenticação
@@ -27,11 +26,11 @@ type AuthServiceInterface interface {
 
 // TransactionServiceInterface define os métodos do serviço de transações
 type TransactionServiceInterface interface {
-	Deposit(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
-	Withdraw(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
-	WithdrawTron(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
-	Transfer(c *fiber.Ctx, amount decimal.Decimal, to string, callbackURL string) (*ServiceResponse, error)
-	GetBalance(c *fiber.Ctx, userID string) (decimal.Decimal, error)
+	Deposit(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	Withdraw(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	WithdrawTron(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	Transfer(userID string, amount decimal.Decimal, to string, callbackURL string) (*ServiceResponse, error)
+	GetBalance(userID string) (decimal.Decimal, error)
 	GetWalletInfo(userID uuid.UUID) (*r.WalletInfo, error)
 }
 
@@ -52,7 +51,7 @@ type TronServiceInterface interface {
 }
 
 // Garantir que os serviços concretos implementam as interfaces
-var _ UserServiceInterface = (*NewUserService)(nil)
-var _ AuthServiceInterface = (*NewAuthService)(nil)
-var _ TransactionServiceInterface = (*NewTransactionService)(nil)
+var _ UserServiceInterface = (*UserService)(nil)
+var _ AuthServiceInterface = (*AuthService)(nil)
+var _ TransactionServiceInterface = (*TransactionService)(nil)
 var _ TronServiceInterface = (*TronService)(nil)

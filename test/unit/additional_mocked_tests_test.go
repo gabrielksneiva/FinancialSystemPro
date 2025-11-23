@@ -306,7 +306,7 @@ func TestDeposit_NegativeAmount(t *testing.T) {
 func TestDeposit_ServiceError(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.DepositFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.DepositFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		return nil, errors.New("queue is full")
 	}
 
@@ -382,7 +382,7 @@ func TestTransfer_ZeroAmount(t *testing.T) {
 func TestTransfer_ServiceError(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.TransferFunc = func(c *fiber.Ctx, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.TransferFunc = func(userID string, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
 		return nil, errors.New("insufficient funds")
 	}
 

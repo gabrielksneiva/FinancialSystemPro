@@ -92,9 +92,13 @@ func NewInternalError(message string, details map[string]interface{}) *AppError 
 
 // NewDatabaseError cria erro de banco de dados
 func NewDatabaseError(operation string, err error) *AppError {
+	message := "Database error"
+	if err != nil {
+		message += ": " + err.Error()
+	}
 	return NewAppError(
 		ErrDatabaseConnection,
-		"Database error: "+err.Error(),
+		message,
 		http.StatusInternalServerError,
 		map[string]interface{}{"operation": operation},
 	)

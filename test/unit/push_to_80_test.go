@@ -23,7 +23,7 @@ import (
 func TestWithdraw_WithdrawTronSuccess(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.WithdrawTronFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.WithdrawTronFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		return &services.ServiceResponse{
 			StatusCode: 200,
 			Body:       map[string]interface{}{"message": "TRON withdrawal queued"},
@@ -54,7 +54,7 @@ func TestWithdraw_WithdrawTronSuccess(t *testing.T) {
 func TestWithdraw_WithdrawTronError(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.WithdrawTronFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.WithdrawTronFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		return nil, errors.New("no TRON wallet found")
 	}
 

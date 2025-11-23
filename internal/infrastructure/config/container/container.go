@@ -39,13 +39,15 @@ import (
 // Ela será fornecida pelo package api para evitar ciclo de import
 type RegisterRoutesFunc func(
 	app *fiber.App,
-	userService *services.NewUserService,
-	authService *services.NewAuthService,
-	transactionService *services.NewTransactionService,
+	userService *services.UserService,
+	authService *services.AuthService,
+	transactionService *services.TransactionService,
 	tronService *services.TronService,
 	logger *zap.Logger,
 	qm *workers.QueueManager,
 	breakerManager *breaker.BreakerManager,
+	dddUserService *userSvc.UserService,
+	dddTransactionService *txnSvc.TransactionService,
 )
 
 // Tipos para DDD Repositories e Services (evita conflitos no fx)
@@ -114,26 +116,19 @@ func ProvideDatabaseConnection(cfg Config) (*repositories.NewDatabase, error) {
 }
 
 // ProvideUserService cria o serviço de usuários
-func ProvideUserService(database *repositories.NewDatabase, lg *zap.Logger, walletManager entities.WalletManager) *services.NewUserService {
+func ProvideUserService(database *repositories.NewDatabase, lg *zap.Logger, walletManager entities.WalletManager) *services.UserService {
 	if database == nil {
 		return nil
 	}
-	return &services.NewUserService{
-		Database:      database,
-		Logger:        lg,
-		WalletManager: walletManager,
-	}
+	return services.NewUserService(database, lg, walletManager)
 }
 
 // ProvideAuthService cria o serviço de autenticação
-func ProvideAuthService(database *repositories.NewDatabase, lg *zap.Logger) *services.NewAuthService {
+func ProvideAuthService(database *repositories.NewDatabase, lg *zap.Logger) *services.AuthService {
 	if database == nil {
 		return nil
 	}
-	return &services.NewAuthService{
-		Database: database,
-		Logger:   lg,
-	}
+	return services.NewAuthService(database, lg)
 }
 
 // ProvideTransactionWorkerPool cria o pool de workers para transações
@@ -152,18 +147,11 @@ func ProvideTransactionService(
 	tronSvc *services.TronService,
 	eventBus events.Bus,
 	lg *zap.Logger,
-) *services.NewTransactionService {
-	if database == nil || pool == nil {
+) *services.TransactionService {
+	if database == nil {
 		return nil
 	}
-	return &services.NewTransactionService{
-		DB:             database,
-		W:              pool,
-		TronWorkerPool: tronPool,
-		TronService:    tronSvc,
-		EventBus:       eventBus,
-		Logger:         lg,
-	}
+	return services.NewTransactionService(database, nil, tronSvc, tronPool, eventBus, lg)
 }
 
 // ProvideTronService cria o serviço de Tron
@@ -218,9 +206,9 @@ func StartServer(
 	app *fiber.App,
 	lg *zap.Logger,
 	eventBus events.Bus,
-	userService *services.NewUserService,
-	authService *services.NewAuthService,
-	transactionService *services.NewTransactionService,
+	userService *services.UserService,
+	authService *services.AuthService,
+	transactionService *services.TransactionService,
 	tronService *services.TronService,
 	registerRoutes RegisterRoutesFunc,
 	qm *workers.QueueManager,
@@ -258,14 +246,14 @@ func StartServer(
 				// Para isso, vamos usar a função RegisterDDDRoutes se disponível
 				// Por enquanto, registrar apenas legacy routes
 				if registerRoutes != nil {
-					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager)
+					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager, dddUserService, dddTransactionService)
 				} else {
 					registerFiberHealthChecks(app)
 				}
 			} else {
 				// Registrar legacy rotas
 				if registerRoutes != nil {
-					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager)
+					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager, dddUserService, dddTransactionService)
 				} else {
 					// Fallback: só health checks
 					registerFiberHealthChecks(app)

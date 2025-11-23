@@ -18,7 +18,7 @@ import (
 // MockUserService implementa services.UserServiceInterface para testes
 type MockUserService struct {
 	CreateNewUserFunc func(*dto.UserRequest) *errors.AppError
-	GetDatabaseFunc   func() *repo.NewDatabase
+	GetDatabaseFunc   func() services.DatabasePort
 }
 
 func (m *MockUserService) CreateNewUser(req *dto.UserRequest) *errors.AppError {
@@ -28,7 +28,7 @@ func (m *MockUserService) CreateNewUser(req *dto.UserRequest) *errors.AppError {
 	return nil
 }
 
-func (m *MockUserService) GetDatabase() *repo.NewDatabase {
+func (m *MockUserService) GetDatabase() services.DatabasePort {
 	if m.GetDatabaseFunc != nil {
 		return m.GetDatabaseFunc()
 	}
@@ -49,45 +49,45 @@ func (m *MockAuthService) Login(loginData *dto.LoginRequest) (string, *errors.Ap
 
 // MockTransactionService implementa services.TransactionServiceInterface para testes
 type MockTransactionService struct {
-	DepositFunc       func(*fiber.Ctx, decimal.Decimal, string) (*services.ServiceResponse, error)
-	WithdrawFunc      func(*fiber.Ctx, decimal.Decimal, string) (*services.ServiceResponse, error)
-	WithdrawTronFunc  func(*fiber.Ctx, decimal.Decimal, string) (*services.ServiceResponse, error)
-	TransferFunc      func(*fiber.Ctx, decimal.Decimal, string, string) (*services.ServiceResponse, error)
-	GetBalanceFunc    func(*fiber.Ctx, string) (decimal.Decimal, error)
+	DepositFunc       func(string, decimal.Decimal, string) (*services.ServiceResponse, error)
+	WithdrawFunc      func(string, decimal.Decimal, string) (*services.ServiceResponse, error)
+	WithdrawTronFunc  func(string, decimal.Decimal, string) (*services.ServiceResponse, error)
+	TransferFunc      func(string, decimal.Decimal, string, string) (*services.ServiceResponse, error)
+	GetBalanceFunc    func(string) (decimal.Decimal, error)
 	GetWalletInfoFunc func(uuid.UUID) (*repo.WalletInfo, error)
 }
 
-func (m *MockTransactionService) Deposit(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) Deposit(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.DepositFunc != nil {
-		return m.DepositFunc(c, amount, callbackURL)
+		return m.DepositFunc(userID, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) Withdraw(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.WithdrawFunc != nil {
-		return m.WithdrawFunc(c, amount, callbackURL)
+		return m.WithdrawFunc(userID, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) WithdrawTron(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.WithdrawTronFunc != nil {
-		return m.WithdrawTronFunc(c, amount, callbackURL)
+		return m.WithdrawTronFunc(userID, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) Transfer(c *fiber.Ctx, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) Transfer(userID string, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
 	if m.TransferFunc != nil {
-		return m.TransferFunc(c, amount, to, callbackURL)
+		return m.TransferFunc(userID, amount, to, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) GetBalance(c *fiber.Ctx, userID string) (decimal.Decimal, error) {
+func (m *MockTransactionService) GetBalance(userID string) (decimal.Decimal, error) {
 	if m.GetBalanceFunc != nil {
-		return m.GetBalanceFunc(c, userID)
+		return m.GetBalanceFunc(userID)
 	}
 	return decimal.NewFromInt(1000), nil
 }

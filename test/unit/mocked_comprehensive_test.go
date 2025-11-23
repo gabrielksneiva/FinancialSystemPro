@@ -129,7 +129,7 @@ func TestLogin_InvalidCredentials(t *testing.T) {
 func TestBalance_SuccessWithMock(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.GetBalanceFunc = func(c *fiber.Ctx, userID string) (decimal.Decimal, error) {
+	txMock.GetBalanceFunc = func(userID string) (decimal.Decimal, error) {
 		assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", userID)
 		return decimal.NewFromInt(5000), nil
 	}
@@ -152,7 +152,7 @@ func TestBalance_SuccessWithMock(t *testing.T) {
 func TestBalance_ServiceError(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.GetBalanceFunc = func(c *fiber.Ctx, userID string) (decimal.Decimal, error) {
+	txMock.GetBalanceFunc = func(userID string) (decimal.Decimal, error) {
 		return decimal.Zero, errors.New("database connection failed")
 	}
 
@@ -225,7 +225,7 @@ func TestGetUserWallet_NotFound(t *testing.T) {
 func TestDeposit_SuccessWithMock(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.DepositFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.DepositFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		assert.True(t, amount.Equal(decimal.NewFromFloat(100.50)))
 		return &services.ServiceResponse{
 			StatusCode: 200,
@@ -258,7 +258,7 @@ func TestDeposit_SuccessWithMock(t *testing.T) {
 func TestWithdraw_SuccessWithMock(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.WithdrawFunc = func(c *fiber.Ctx, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.WithdrawFunc = func(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 		assert.True(t, amount.Equal(decimal.NewFromInt(50)))
 		return &services.ServiceResponse{
 			StatusCode: 200,
@@ -291,7 +291,7 @@ func TestWithdraw_SuccessWithMock(t *testing.T) {
 func TestTransfer_SuccessWithMock(t *testing.T) {
 	handler, _, _, txMock, _ := NewMockedHandler()
 
-	txMock.TransferFunc = func(c *fiber.Ctx, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
+	txMock.TransferFunc = func(userID string, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
 		assert.True(t, amount.Equal(decimal.NewFromInt(200)))
 		assert.Equal(t, "recipient@example.com", to)
 		return &services.ServiceResponse{

@@ -149,6 +149,15 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 		return err
 	}
 
+	userIDLocal := ctx.Locals("user_id")
+	if userIDLocal == nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
+	}
+	userID, ok := userIDLocal.(string)
+	if !ok || userID == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
 	var depositRequest dto.DepositRequest
 	if validErr := dto.ValidateRequest(ctx, &depositRequest); validErr != nil {
 		RecordFailure()
@@ -166,7 +175,7 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
-	resp, err := h.transactionService.Deposit(ctx, amount, depositRequest.CallbackURL)
+	resp, err := h.transactionService.Deposit(userID, amount, depositRequest.CallbackURL)
 	if err != nil {
 		RecordFailure()
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -193,12 +202,12 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
 	}
 
-	UserID, ok := userIDLocal.(string)
-	if !ok || UserID == "" {
+	userID, ok := userIDLocal.(string)
+	if !ok || userID == "" {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
-	balance, err := h.transactionService.GetBalance(ctx, UserID)
+	balance, err := h.transactionService.GetBalance(userID)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -268,6 +277,15 @@ func (h *NewHandler) GetUserWallet(ctx *fiber.Ctx) error {
 // @Failure      500  {object}  map[string]interface{}}
 // @Router       /api/withdraw [post]
 func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
+	userIDLocal := ctx.Locals("user_id")
+	if userIDLocal == nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
+	}
+	userID, ok := userIDLocal.(string)
+	if !ok || userID == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
 	var withdrawRequest dto.WithdrawRequest
 	if validErr := dto.ValidateRequest(ctx, &withdrawRequest); validErr != nil {
 		return h.handleAppError(ctx, validErr)
@@ -282,7 +300,6 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
-	// Detectar tipo de withdraw (padrão: internal)
 	withdrawType := withdrawRequest.WithdrawType
 	if withdrawType == "" {
 		withdrawType = "internal"
@@ -290,11 +307,9 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 
 	var resp *services.ServiceResponse
 	if withdrawType == "tron" {
-		// Withdraw para TRON blockchain (envia da vault para carteira do usuário)
-		resp, err = h.transactionService.WithdrawTron(ctx, amount, withdrawRequest.CallbackURL)
+		resp, err = h.transactionService.WithdrawTron(userID, amount, withdrawRequest.CallbackURL)
 	} else {
-		// Withdraw interno (padrão - apenas debita saldo)
-		resp, err = h.transactionService.Withdraw(ctx, amount, withdrawRequest.CallbackURL)
+		resp, err = h.transactionService.Withdraw(userID, amount, withdrawRequest.CallbackURL)
 	}
 
 	if err != nil {
@@ -322,6 +337,15 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/transfer [post]
 func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
+	userIDLocal := ctx.Locals("user_id")
+	if userIDLocal == nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
+	}
+	userID, ok := userIDLocal.(string)
+	if !ok || userID == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
 	var transferRequest dto.TransferRequest
 	if validErr := dto.ValidateRequest(ctx, &transferRequest); validErr != nil {
 		return h.handleAppError(ctx, validErr)
@@ -336,7 +360,7 @@ func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Amount must be greater than zero"})
 	}
 
-	resp, err := h.transactionService.Transfer(ctx, amount, transferRequest.To, transferRequest.CallbackURL)
+	resp, err := h.transactionService.Transfer(userID, amount, transferRequest.To, transferRequest.CallbackURL)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
