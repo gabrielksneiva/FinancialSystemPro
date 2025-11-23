@@ -18,6 +18,7 @@ func execWithRateLimiter(t *testing.T, rl *RateLimiter, action, userID string, t
 		req := httptest.NewRequest("GET", "/test", nil)
 		resp, err := app.Test(req, -1)
 		assert.NoError(t, err)
+		defer resp.Body.Close()
 		lastStatus = resp.StatusCode
 	}
 	return
@@ -50,5 +51,6 @@ func TestRateLimiter_UnauthorizedWithoutUserID(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 }

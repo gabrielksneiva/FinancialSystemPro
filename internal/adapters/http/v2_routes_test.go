@@ -158,6 +158,7 @@ func TestV2Routes_UserLifecycleAndTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create user request failed: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusCreated {
 		t.Fatalf("expected 201 got %d", resp.StatusCode)
 	}
@@ -179,6 +180,7 @@ func TestV2Routes_UserLifecycleAndTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("login request failed: %v", err)
 	}
+	defer loginResp.Body.Close()
 	if loginResp.StatusCode != fiber.StatusOK {
 		t.Fatalf("expected 200 login got %d", loginResp.StatusCode)
 	}
@@ -200,6 +202,7 @@ func TestV2Routes_UserLifecycleAndTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deposit request failed: %v", err)
 	}
+	defer depResp.Body.Close()
 	if depResp.StatusCode != fiber.StatusAccepted {
 		t.Fatalf("expected 202 deposit got %d", depResp.StatusCode)
 	}
@@ -212,6 +215,7 @@ func TestV2Routes_UserLifecycleAndTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("withdraw request failed: %v", err)
 	}
+	defer wResp.Body.Close()
 	if wResp.StatusCode != fiber.StatusAccepted {
 		t.Fatalf("expected 202 withdraw got %d", wResp.StatusCode)
 	}
@@ -223,6 +227,7 @@ func TestV2Routes_UserLifecycleAndTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("history request failed: %v", err)
 	}
+	defer hResp.Body.Close()
 	if hResp.StatusCode != fiber.StatusOK {
 		t.Fatalf("expected 200 history got %d", hResp.StatusCode)
 	}
@@ -238,6 +243,7 @@ func TestV2Routes_UserLifecycleAndTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wallet request failed: %v", err)
 	}
+	defer walletResp.Body.Close()
 	if walletResp.StatusCode != fiber.StatusOK {
 		t.Fatalf("expected 200 wallet got %d", walletResp.StatusCode)
 	}

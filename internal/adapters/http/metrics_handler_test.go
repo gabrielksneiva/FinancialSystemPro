@@ -32,6 +32,7 @@ func TestMetrics_GetMetricsBasicShape(t *testing.T) {
 	req := httptest.NewRequest("GET", "/metrics-json", nil)
 	resp, err := app.Test(req, -1)
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 
 	var payload map[string]interface{}
