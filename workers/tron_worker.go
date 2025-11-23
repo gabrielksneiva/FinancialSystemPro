@@ -1,7 +1,10 @@
 package workers
 
 import (
+	"bytes"
+	"encoding/json"
 	"financial-system-pro/repositories"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,6 +72,19 @@ func (twp *TronWorkerPool) processConfirmationJob(job TronTxConfirmJob) {
 		zap.String("user_id", job.UserID.String()),
 	)
 
+	// Enviar callback inicial de monitoramento iniciado
+	if job.CallbackURL != "" {
+		twp.sendCallback(job.CallbackURL, map[string]interface{}{
+			"status":      "monitoring_started",
+			"tx_hash":     job.TronTxHash,
+			"job_id":      job.JobID.String(),
+			"tx_id":       job.TransactionID.String(),
+			"timestamp":   time.Now().Unix(),
+			"check_count": 0,
+			"max_checks":  job.MaxChecks,
+		})
+	}
+
 	// Verificar status da transação
 	checkCount := 0
 	for checkCount < job.MaxChecks {
@@ -79,21 +95,49 @@ func (twp *TronWorkerPool) processConfirmationJob(job TronTxConfirmJob) {
 		default:
 		}
 
+		checkCount++
+
+		// Enviar callback de verificação em andamento
+		if job.CallbackURL != "" && checkCount > 1 {
+			twp.sendCallback(job.CallbackURL, map[string]interface{}{
+				"status":      "checking",
+				"tx_hash":     job.TronTxHash,
+				"job_id":      job.JobID.String(),
+				"tx_id":       job.TransactionID.String(),
+				"timestamp":   time.Now().Unix(),
+				"check_count": checkCount,
+				"max_checks":  job.MaxChecks,
+			})
+		}
+
 		// Buscar status da transação TRON
 		_, err := twp.TronSvc.GetTransaction(job.TronTxHash)
 		if err != nil {
 			twp.logger.Warn("Erro ao buscar status de TX",
 				zap.String("tx_hash", job.TronTxHash),
 				zap.Error(err),
+				zap.Int("check_count", checkCount),
 			)
-			checkCount++
+
+			// Enviar callback de erro na verificação
+			if job.CallbackURL != "" {
+				twp.sendCallback(job.CallbackURL, map[string]interface{}{
+					"status":      "check_error",
+					"tx_hash":     job.TronTxHash,
+					"job_id":      job.JobID.String(),
+					"tx_id":       job.TransactionID.String(),
+					"timestamp":   time.Now().Unix(),
+					"check_count": checkCount,
+					"max_checks":  job.MaxChecks,
+					"error":       err.Error(),
+				})
+			}
+
 			time.Sleep(time.Duration(job.CheckInterval) * time.Second)
 			continue
 		}
 
-		// Aqui você precisaria fazer type assertion se soubesse a estrutura de retorno
-		// Por agora, apenas marcamos como confirmed após confirmar que existe
-		txStatus := "confirmed"
+d		txStatus := "confirmed"
 
 		err = twp.DB.UpdateTransaction(job.TransactionID, map[string]interface{}{
 			"tron_tx_status": txStatus,
@@ -106,61 +150,114 @@ func (twp *TronWorkerPool) processConfirmationJob(job TronTxConfirmJob) {
 			)
 		}
 
-		// Se confirmada, enviar callback e parar
-		if txStatus == "confirmed" {
-			twp.logger.Info("TX TRON confirmada",
-				zap.String("tx_hash", job.TronTxHash),
-				zap.String("user_id", job.UserID.String()),
-			)
+		// TX confirmada, enviar callback final
+		twp.logger.Info("TX TRON confirmada",
+			zap.String("tx_hash", job.TronTxHash),
+			zap.String("user_id", job.UserID.String()),
+			zap.Int("check_count", checkCount),
+		)
 
-			if job.CallbackURL != "" {
-				twp.sendCallback(job.CallbackURL, map[string]interface{}{
-					"status":    "confirmed",
-					"tx_hash":   job.TronTxHash,
-					"job_id":    job.JobID.String(),
-					"tx_id":     job.TransactionID.String(),
-					"timestamp": time.Now().Unix(),
-				})
-			}
-			return
+		if job.CallbackURL != "" {
+			twp.sendCallback(job.CallbackURL, map[string]interface{}{
+				"status":      "confirmed",
+				"tx_hash":     job.TronTxHash,
+				"job_id":      job.JobID.String(),
+				"tx_id":       job.TransactionID.String(),
+				"timestamp":   time.Now().Unix(),
+				"check_count": checkCount,
+			})
 		}
-
-		checkCount++
-		time.Sleep(time.Duration(job.CheckInterval) * time.Second)
+		return
 	}
 
-	// Se não confirmou após max checks, marcar como pendente permanentemente
+	// Se não confirmou após max checks, marcar como timeout
 	twp.logger.Warn("TX TRON não confirmada após limite de verificações",
 		zap.String("tx_hash", job.TronTxHash),
 		zap.Int("checks", checkCount),
 	)
 
+	// Atualizar status no DB
 	err := twp.DB.UpdateTransaction(job.TransactionID, map[string]interface{}{
-		"tron_tx_status": "unconfirmed",
+		"tron_tx_status": "timeout",
 	})
 	if err != nil {
-		twp.logger.Error("Erro ao marcar TX como não confirmada", zap.Error(err))
+		twp.logger.Error("Erro ao atualizar status timeout no DB",
+			zap.String("tx_hash", job.TronTxHash),
+			zap.Error(err),
+		)
 	}
 
+	// Enviar callback de timeout
 	if job.CallbackURL != "" {
 		twp.sendCallback(job.CallbackURL, map[string]interface{}{
-			"status":    "unconfirmed",
-			"tx_hash":   job.TronTxHash,
-			"job_id":    job.JobID.String(),
-			"tx_id":     job.TransactionID.String(),
-			"timestamp": time.Now().Unix(),
+			"status":      "timeout",
+			"tx_hash":     job.TronTxHash,
+			"job_id":      job.JobID.String(),
+			"tx_id":       job.TransactionID.String(),
+			"timestamp":   time.Now().Unix(),
+			"check_count": checkCount,
+			"max_checks":  job.MaxChecks,
 		})
 	}
 }
 
-// sendCallback envia notificação ao cliente sobre status da TX
+// sendCallback envia notificação HTTP ao cliente sobre status da TX
 func (twp *TronWorkerPool) sendCallback(url string, data map[string]interface{}) {
-	// Implementar webhook call aqui (usar http.Client)
-	// Por agora, apenas log
-	twp.logger.Info("Enviando callback",
-		zap.String("url", url),
-		zap.Any("data", data),
-	)
+	if url == "" {
+		return
+	}
+
+	// Preparar payload JSON
+	payload, err := json.Marshal(data)
+	if err != nil {
+		twp.logger.Error("Erro ao serializar callback payload",
+			zap.String("url", url),
+			zap.Error(err),
+		)
+		return
+	}
+
+	// Criar requisição HTTP POST
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	if err != nil {
+		twp.logger.Error("Erro ao criar requisição de callback",
+			zap.String("url", url),
+			zap.Error(err),
+		)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "FinancialSystemPro-TronWorker/1.0")
+	req.Header.Set("X-Callback-Event", "tron_transaction_update")
+
+	// Enviar callback com timeout de 10 segundos
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		twp.logger.Warn("Erro ao enviar callback",
+			zap.String("url", url),
+			zap.Error(err),
+		)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		twp.logger.Info("Callback enviado com sucesso",
+			zap.String("url", url),
+			zap.Int("status_code", resp.StatusCode),
+			zap.Any("data", data),
+		)
+	} else {
+		twp.logger.Warn("Callback retornou status inesperado",
+			zap.String("url", url),
+			zap.Int("status_code", resp.StatusCode),
+		)
+	}
 }
 
 // SubmitConfirmationJob adiciona um job de confirmação à fila
