@@ -104,12 +104,12 @@ jobs:
       - name: Run gosec (SARIF)
         run: $(go env GOPATH)/bin/gosec -no-fail -fmt=sarif -out=gosec.sarif ./...
       - name: Upload SARIF (gosec)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: gosec.sarif
       - name: Conditional CodeQL Init
         if: ${{ inputs.run_codeql == 'true' }}
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: go
           queries: security-and-quality
@@ -118,7 +118,7 @@ jobs:
         run: go build ./...
       - name: Conditional CodeQL Analyze
         if: ${{ inputs.run_codeql == 'true' }}
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: /language:go
       - name: Install Trivy
@@ -130,7 +130,7 @@ jobs:
       - name: Trivy FS SARIF
         run: ./trivy filesystem --ignore-unfixed --format sarif --output trivy-fs.sarif . || true
       - name: Upload SARIF (Trivy FS)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
       - name: Trivy FS JSON
@@ -174,7 +174,7 @@ jobs:
       - name: Trivy Image SARIF
         run: ./trivy image --ignore-unfixed --format sarif --output trivy-image.sarif ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.sha }} || true
       - name: Upload SARIF (Trivy Image)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image.sarif
       - name: Trivy Image JSON
