@@ -11,6 +11,10 @@ import (
 	repositories "financial-system-pro/internal/infrastructure/database"
 	"financial-system-pro/internal/infrastructure/logger"
 	workers "financial-system-pro/internal/infrastructure/queue"
+	"financial-system-pro/internal/shared/breaker"
+	"financial-system-pro/internal/shared/database"
+	"financial-system-pro/internal/shared/events"
+	"financial-system-pro/internal/shared/tracing"
 	"financial-system-pro/internal/shared/validator"
 
 	"github.com/gofiber/fiber/v2"
@@ -28,6 +32,17 @@ type RegisterRoutesFunc func(
 	tronService *services.TronService,
 	logger *zap.Logger,
 	qm *workers.QueueManager,
+	breakerManager *breaker.BreakerManager,
+)
+
+// Tipos para DDD Repositories e Services (evita conflitos no fx)
+type (
+	DDDUserRepositoryType                  struct{}
+	DDDWalletRepositoryType                struct{}
+	DDDUserServiceType                     struct{}
+	DDDTransactionRepositoryType           struct{}
+	DDDTransactionServiceType              struct{}
+	DDDBlockchainTransactionRepositoryType struct{}
 )
 
 // defaultRegisterRoutes é a função padrão (pode ser sobrescrita)
@@ -60,7 +75,17 @@ func LoadConfig() Config {
 	}
 }
 
-// ProvideDatabaseConnection cria a conexão com banco de dados
+// ProvideSharedDatabaseConnection cria a conexão com banco usando interface compartilhada
+func ProvideSharedDatabaseConnection(cfg Config) (database.Connection, error) {
+	if cfg.DatabaseURL == "" {
+		fmt.Println("Warning: DATABASE_URL not set")
+		return nil, nil
+	}
+
+	return database.NewPostgresConnection(cfg.DatabaseURL)
+}
+
+// ProvideDatabaseConnection cria a conexão com banco de dados (legacy)
 func ProvideDatabaseConnection(cfg Config) (*repositories.NewDatabase, error) {
 	if cfg.DatabaseURL == "" {
 		fmt.Println("Warning: DATABASE_URL not set, running without database")
@@ -112,6 +137,7 @@ func ProvideTransactionService(
 	pool *workers.TransactionWorkerPool,
 	tronPool *workers.TronWorkerPool,
 	tronSvc *services.TronService,
+	eventBus events.Bus,
 	lg *zap.Logger,
 ) *services.NewTransactionService {
 	if database == nil || pool == nil {
@@ -122,6 +148,7 @@ func ProvideTransactionService(
 		W:              pool,
 		TronWorkerPool: tronPool,
 		TronService:    tronSvc,
+		EventBus:       eventBus,
 		Logger:         lg,
 	}
 }
@@ -152,6 +179,16 @@ func ProvideLogger() (*zap.Logger, error) {
 	return logger.ProvideLogger()
 }
 
+// ProvideEventBus cria o event bus in-memory
+func ProvideEventBus(lg *zap.Logger) events.Bus {
+	return events.NewInMemoryBus(lg)
+}
+
+// ProvideBreakerManager cria o gerenciador de circuit breakers
+func ProvideBreakerManager(lg *zap.Logger) *breaker.BreakerManager {
+	return breaker.NewBreakerManager(lg)
+}
+
 // ProvideValidator cria o serviço de validação
 func ProvideValidator() *validator.ValidatorService {
 	return validator.New()
@@ -163,14 +200,29 @@ func ProvideWalletManager() entities.WalletManager {
 }
 
 // StartServer inicia o servidor Fiber e workers
-func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService, registerRoutes RegisterRoutesFunc, qm *workers.QueueManager) {
+func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, eventBus events.Bus, userService *services.NewUserService, authService *services.NewAuthService, transactionService *services.NewTransactionService, tronService *services.TronService, registerRoutes RegisterRoutesFunc, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
+	// Inicializar distributed tracing
+	shutdownTracer, err := tracing.InitTracer("financial-system-pro", lg)
+	if err != nil {
+		lg.Warn("failed to initialize tracer, continuing without tracing", zap.Error(err))
+	} else {
+		lg.Info("distributed tracing initialized successfully")
+	}
+
+	// Configurar event subscribers
+	services.SetupEventSubscribers(eventBus, lg)
+	lg.Info("event subscribers configured")
+
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			lg.Info("Starting Fiber server on port 3000")
 
+			// Adicionar middleware de tracing
+			app.Use(tracing.FiberTracingMiddleware("financial-system-pro"))
+
 			// Registrar rotas via callback function
 			if registerRoutes != nil {
-				registerRoutes(app, userService, authService, transactionService, tronService, lg, qm)
+				registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager)
 			} else {
 				// Fallback: só health checks
 				registerFiberHealthChecks(app)
@@ -192,6 +244,14 @@ func StartServer(lc fx.Lifecycle, app *fiber.App, lg *zap.Logger, userService *s
 		},
 		OnStop: func(ctx context.Context) error {
 			lg.Info("Shutting down Fiber server and workers")
+
+			// Shutdown tracer
+			if shutdownTracer != nil {
+				if err := shutdownTracer(ctx); err != nil {
+					lg.Warn("failed to shutdown tracer", zap.Error(err))
+				}
+			}
+
 			if qm != nil {
 				qm.Close()
 			}
@@ -242,16 +302,67 @@ func ProvideQueueManager(cfg Config, lg *zap.Logger, database *repositories.NewD
 	return qm
 }
 
+// ProvideUserRepository cria o repositório de usuários para o DDD User Context
+// Por enquanto retorna nil - será expandido após consolidar arquitetura
+func ProvideUserRepository(conn database.Connection) interface{} {
+	return nil
+}
+
+// ProvideWalletRepository cria o repositório de wallets para o DDD User Context
+// Por enquanto retorna nil - será expandido após consolidar arquitetura
+func ProvideWalletRepository(conn database.Connection) interface{} {
+	return nil
+}
+
+// ProvideDDDUserService cria o UserService do DDD User Context
+// Por enquanto retorna nil - será expandido após consolidar arquitetura
+func ProvideDDDUserService(
+	userRepo interface{},
+	walletRepo interface{},
+	eventBus events.Bus,
+	lg *zap.Logger,
+) interface{} {
+	return nil
+}
+
+// ProvideTransactionRepository cria o repositório de transações para o DDD Transaction Context
+// Por enquanto retorna nil - será expandido após consolidar arquitetura
+func ProvideTransactionRepository(conn database.Connection) interface{} {
+	return nil
+}
+
+// ProvideDDDTransactionService cria o TransactionService do DDD Transaction Context
+// Por enquanto retorna nil - será expandido após consolidar arquitetura
+func ProvideDDDTransactionService(
+	txnRepo interface{},
+	userRepo interface{},
+	walletRepo interface{},
+	eventBus events.Bus,
+	breakerManager *breaker.BreakerManager,
+	lg *zap.Logger,
+) interface{} {
+	return nil
+}
+
+// ProvideBlockchainTransactionRepository cria o repositório de transações blockchain
+// Por enquanto retorna nil - será expandido após consolidar arquitetura
+func ProvideBlockchainTransactionRepository(conn database.Connection) interface{} {
+	return nil
+}
+
 // New cria a aplicação com todas as dependências gerenciadas por fx
 func New() *fx.App {
 	return fx.New(
 		fx.Provide(LoadConfig),
 		fx.Provide(ProvideLogger),
+		fx.Provide(ProvideEventBus),
+		fx.Provide(ProvideBreakerManager),
 		fx.Provide(ProvideValidator),
 		fx.Provide(ProvideQueueManager),
 		fx.Provide(ProvideRegisterRoutes),
 		fx.Provide(ProvideApp),
 		fx.Provide(ProvideDatabaseConnection),
+		fx.Provide(ProvideSharedDatabaseConnection),
 		fx.Provide(ProvideWalletManager),
 		fx.Provide(ProvideUserService),
 		fx.Provide(ProvideAuthService),

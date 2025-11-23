@@ -139,7 +139,7 @@ func (c *TronGRPCClient) HealthCheck(ctx context.Context) error {
 	}
 
 	// Timeout para health check
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	_, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	conn := c.GetConnection()

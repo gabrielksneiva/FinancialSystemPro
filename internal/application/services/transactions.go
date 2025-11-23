@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,7 +10,7 @@ import (
 	"financial-system-pro/internal/domain/errors"
 	r "financial-system-pro/internal/infrastructure/database"
 	w "financial-system-pro/internal/infrastructure/queue"
-	"financial-system-pro/internal/shared/utils"
+	"financial-system-pro/internal/shared/events"
 	"fmt"
 	"net/http"
 	"os"
@@ -26,6 +27,7 @@ type NewTransactionService struct {
 	W              *w.TransactionWorkerPool
 	TronWorkerPool *w.TronWorkerPool
 	TronService    *TronService
+	EventBus       events.Bus
 	Logger         *zap.Logger
 }
 
@@ -76,6 +78,13 @@ func (t *NewTransactionService) Deposit(c *fiber.Ctx, amount decimal.Decimal, ca
 			zap.String("amount", amount.String()),
 			zap.Error(err),
 		)
+
+		// Publicar evento de falha
+		if t.EventBus != nil {
+			event := events.NewTransactionFailedEvent(uid, "deposit", amount, err.Error(), "DEPOSIT_FAILED")
+			t.EventBus.PublishAsync(context.Background(), event)
+		}
+
 		return nil, errors.NewDatabaseError("deposit failed", nil)
 	}
 	if err := t.DB.Insert(&r.Transaction{
@@ -96,6 +105,14 @@ func (t *NewTransactionService) Deposit(c *fiber.Ctx, amount decimal.Decimal, ca
 		zap.String("account_id", uid.String()),
 		zap.String("amount", amount.String()),
 	)
+
+	// Publicar evento de depósito completado
+	if t.EventBus != nil {
+		txHash := fmt.Sprintf("dep_%s", uuid.New().String()[:8])
+		event := events.NewDepositCompletedEvent(uid, amount, txHash)
+		t.EventBus.PublishAsync(context.Background(), event)
+	}
+
 	return &ServiceResponse{
 		StatusCode: fiber.StatusOK,
 		Body:       fiber.Map{"message": "Deposit successfully"},
@@ -158,6 +175,13 @@ func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal, c
 	err = t.DB.Transaction(uid, amount, "withdraw")
 	if err != nil {
 		t.Logger.Error("withdraw transaction failed", zap.String("account_id", uid.String()), zap.Error(err))
+
+		// Publicar evento de falha
+		if t.EventBus != nil {
+			event := events.NewTransactionFailedEvent(uid, "withdraw", amount, err.Error(), "WITHDRAW_FAILED")
+			t.EventBus.PublishAsync(context.Background(), event)
+		}
+
 		return nil, err
 	}
 
@@ -174,6 +198,14 @@ func (t *NewTransactionService) Withdraw(c *fiber.Ctx, amount decimal.Decimal, c
 	}
 
 	t.Logger.Info("withdraw successful", zap.String("account_id", uid.String()), zap.String("amount", amount.String()))
+
+	// Publicar evento de saque completado
+	if t.EventBus != nil {
+		txHash := fmt.Sprintf("wd_%s", uuid.New().String()[:8])
+		event := events.NewWithdrawCompletedEvent(uid, amount, txHash)
+		t.EventBus.PublishAsync(context.Background(), event)
+	}
+
 	return &ServiceResponse{
 		StatusCode: fiber.StatusOK,
 		Body:       fiber.Map{"message": "Withdraw successfully"},
@@ -271,6 +303,14 @@ func (t *NewTransactionService) Transfer(c *fiber.Ctx, amount decimal.Decimal, u
 		zap.String("to_email", userTo),
 		zap.String("amount", amount.String()),
 	)
+
+	// Publicar evento de transferência completada
+	if t.EventBus != nil {
+		txHash := fmt.Sprintf("tr_%s", uuid.New().String()[:8])
+		event := events.NewTransferCompletedEvent(userFrom, destinyUserID, amount, txHash)
+		t.EventBus.PublishAsync(context.Background(), event)
+	}
+
 	return &ServiceResponse{
 		StatusCode: fiber.StatusOK,
 		Body:       fiber.Map{"message": "Transfer successfully"},
@@ -490,16 +530,6 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 			"explorer_url": fmt.Sprintf("https://shasta.tronscan.org/#/transaction/%s", txHash),
 		},
 	}, nil
-}
-
-// decryptPrivateKey descriptografa a private key armazenada
-func (t *NewTransactionService) decryptPrivateKey(encryptedKey string) (string, error) {
-	if encryptedKey == "" {
-		return "", fmt.Errorf("encrypted key is empty")
-	}
-
-	// Usar a função de utils para descriptografar
-	return utils.DecryptPrivateKey(encryptedKey)
 }
 
 // stringPtr retorna um pointer para uma string

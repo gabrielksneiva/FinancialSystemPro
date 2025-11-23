@@ -3,7 +3,8 @@ package http
 import (
 	_ "financial-system-pro/docs"
 	"financial-system-pro/internal/application/services"
-	queue "financial-system-pro/internal/infrastructure/queue"
+	workers "financial-system-pro/internal/infrastructure/queue"
+	"financial-system-pro/internal/shared/breaker"
 	"time"
 
 	fiberSwagger "github.com/swaggo/fiber-swagger"
@@ -12,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func router(app *fiber.App, userService services.UserServiceInterface, authService services.AuthServiceInterface, trasactionService services.TransactionServiceInterface, tronService services.TronServiceInterface, logger *zap.Logger, qm *queue.QueueManager) {
+func router(app *fiber.App, userService services.UserServiceInterface, authService services.AuthServiceInterface, trasactionService services.TransactionServiceInterface, tronService services.TronServiceInterface, logger *zap.Logger, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
 	rateLimiter := NewRateLimiter(logger)
 
 	// Criar adapters para as interfaces
@@ -38,7 +39,15 @@ func router(app *fiber.App, userService services.UserServiceInterface, authServi
 	app.Get("/ready", handler.ReadinessProbe)
 	app.Get("/alive", handler.LivenessProbe)
 	app.Get("/health/full", handler.HealthCheckFull)
-	app.Get("/metrics", GetMetrics)
+	app.Get("/metrics-old", GetMetrics) // Métricas antigas customizadas
+
+	// Prometheus metrics endpoint
+	SetupMetricsEndpoint(app)
+
+	// Circuit breaker endpoints
+	circuitBreakerHandler := NewCircuitBreakerHandler(breakerManager)
+	app.Get("/api/circuit-breakers", circuitBreakerHandler.GetCircuitBreakerStatus)
+	app.Get("/api/circuit-breakers/health", circuitBreakerHandler.GetCircuitBreakerHealth)
 
 	app.Get("/docs", func(c *fiber.Ctx) error {
 		return c.Redirect("/docs/index.html", fiber.StatusFound)

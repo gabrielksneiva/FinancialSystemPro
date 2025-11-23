@@ -138,40 +138,6 @@ func (twm *TronWalletManager) generateTronAddress(pubKeyBytes []byte) string {
 // base58 alphabet (Bitcoin style, sem 0, O, I, l)
 const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
-// base58Encode codifica bytes em base58
-func (twm *TronWalletManager) base58Encode(data []byte) string {
-	result := ""
-
-	// Contar zeros à esquerda
-	zeroes := 0
-	for _, v := range data {
-		if v != 0 {
-			break
-		}
-		zeroes++
-	}
-
-	// Adicionar '1' para cada zero à esquerda
-	for i := 0; i < zeroes; i++ {
-		result += "1"
-	}
-
-	// Se todos os bytes são zero
-	if zeroes == len(data) {
-		return result
-	}
-
-	// Converter restante dos dados
-	num := twm.bytesToBigEndianInt(data[zeroes:])
-	for num > 0 {
-		digit := num % 58
-		result = string(base58Alphabet[digit]) + result
-		num = num / 58
-	}
-
-	return result
-}
-
 // base58Decode decodifica string base58 para bytes
 func (twm *TronWalletManager) base58Decode(s string) ([]byte, error) {
 	result := []byte{}
@@ -223,13 +189,4 @@ func (twm *TronWalletManager) base58Decode(s string) ([]byte, error) {
 	}
 
 	return result, nil
-}
-
-// bytesToBigEndianInt converte bytes para número inteiro
-func (twm *TronWalletManager) bytesToBigEndianInt(data []byte) int {
-	result := 0
-	for _, b := range data {
-		result = result*256 + int(b)
-	}
-	return result
 }
