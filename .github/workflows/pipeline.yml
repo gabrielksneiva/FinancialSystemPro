@@ -127,7 +127,7 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y curl jq
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b ./trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
           ./trivy --version
       - name: Trivy FS SARIF
         run: ./trivy filesystem --ignore-unfixed --format sarif --output trivy-fs.sarif . || true
@@ -173,6 +173,20 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Digest
         run: echo IMAGE_DIGEST=${{ steps.build.outputs.digest }}
+      - name: Install Trivy (CI Image scan)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y curl jq
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
+          ./trivy --version
+      - name: Trivy FS SARIF (CI)
+        run: ./trivy filesystem --ignore-unfixed --format sarif --output trivy-fs.sarif . || true
+      - name: Upload SARIF (Trivy FS CI)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+      - name: Trivy FS JSON (CI)
+        run: ./trivy filesystem --ignore-unfixed --severity HIGH,CRITICAL --format json --output trivy-fs.json . || true
       - name: Trivy Image SARIF
         run: ./trivy image --ignore-unfixed --format sarif --output trivy-image.sarif ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.sha }} || true
       - name: Upload SARIF (Trivy Image)
@@ -233,7 +247,7 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y curl jq
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b ./trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
       - name: Trivy Release Image JSON
         run: ./trivy image --ignore-unfixed --severity HIGH,CRITICAL --format json --output trivy-release.json ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.ref_name }} || true
       - name: Gate vulnerabilities (Release)
