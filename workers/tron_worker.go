@@ -137,7 +137,8 @@ func (twp *TronWorkerPool) processConfirmationJob(job TronTxConfirmJob) {
 			continue
 		}
 
-d		txStatus := "confirmed"
+		// Transação encontrada na blockchain, marcar como confirmed
+		txStatus := "confirmed"
 
 		err = twp.DB.UpdateTransaction(job.TransactionID, map[string]interface{}{
 			"tron_tx_status": txStatus,
