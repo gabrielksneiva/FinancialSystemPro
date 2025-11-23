@@ -401,7 +401,7 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 	if err != nil {
 		t.Logger.Error("withdraw transaction failed", zap.String("account_id", uid.String()), zap.Error(err))
 		// Reverter status para failed
-		t.DB.UpdateTransaction(txRecord.ID, map[string]interface{}{"tron_tx_status": "failed"})
+		_ = t.DB.UpdateTransaction(txRecord.ID, map[string]interface{}{"tron_tx_status": "failed"})
 		return nil, err
 	}
 
@@ -427,7 +427,6 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 	// Enviar a transação TRON do cofre para a wallet do usuário
 	var txHash string
 	var sendError error
-	status := "broadcasting"
 
 	// Tentar enviar a transação do VAULT para o usuário
 	txHash, sendError = t.TronService.SendTransaction(
@@ -444,10 +443,9 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 			zap.String("to_user", destinationAddress),
 			zap.Error(sendError),
 		)
-		status = "failed"
 
 		// Atualizar status no banco
-		t.DB.UpdateTransaction(txRecord.ID, map[string]interface{}{"tron_tx_status": status})
+		_ = t.DB.UpdateTransaction(txRecord.ID, map[string]interface{}{"tron_tx_status": "failed"})
 
 		// Enviar webhook de falha
 		if callbackURL != "" {
@@ -473,12 +471,11 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 		zap.String("from", vaultAddress),
 		zap.String("to", destinationAddress),
 	)
-	status = "broadcast_success"
 
 	// Atualizar registro com hash e status
 	err = t.DB.UpdateTransaction(txRecord.ID, map[string]interface{}{
 		"tron_tx_hash":   txHash,
-		"tron_tx_status": status,
+		"tron_tx_status": "broadcast_success",
 	})
 	if err != nil {
 		t.Logger.Error("failed to update tx hash", zap.Error(err))
@@ -525,7 +522,7 @@ func (t *NewTransactionService) WithdrawTron(c *fiber.Ctx, amount decimal.Decima
 			"tx_hash":      txHash,
 			"amount":       amount.String(),
 			"to_address":   destinationAddress,
-			"status":       status,
+			"status":       "broadcast_success",
 			"description":  "Transaction is awaiting confirmations on TRON network",
 			"explorer_url": fmt.Sprintf("https://shasta.tronscan.org/#/transaction/%s", txHash),
 		},

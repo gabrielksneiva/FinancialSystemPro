@@ -126,7 +126,9 @@ func (c *RPCClient) GetBalance(ctx context.Context, address string) (int64, erro
 
 	// Converter de hex para int64
 	var balanceInt int64
-	fmt.Sscanf(balance, "%x", &balanceInt)
+	if _, err := fmt.Sscanf(balance, "%x", &balanceInt); err != nil {
+		return 0, fmt.Errorf("erro ao converter saldo de hex: %w", err)
+	}
 	return balanceInt, nil
 }
 
@@ -143,7 +145,9 @@ func (c *RPCClient) GetBlockNumber(ctx context.Context) (int64, error) {
 	}
 
 	var blockNumInt int64
-	fmt.Sscanf(blockNum, "%x", &blockNumInt)
+	if _, err := fmt.Sscanf(blockNum, "%x", &blockNumInt); err != nil {
+		return 0, fmt.Errorf("erro ao converter número do bloco de hex: %w", err)
+	}
 	return blockNumInt, nil
 }
 
@@ -185,7 +189,9 @@ func (c *RPCClient) EstimateGas(ctx context.Context, from, to string, value, dat
 	}
 
 	var gasInt int64
-	fmt.Sscanf(gasEstimate, "%x", &gasInt)
+	if _, err := fmt.Sscanf(gasEstimate, "%x", &gasInt); err != nil {
+		return 0, fmt.Errorf("erro ao converter estimativa de gas de hex: %w", err)
+	}
 	return gasInt, nil
 }
 

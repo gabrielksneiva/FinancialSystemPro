@@ -96,7 +96,7 @@ func TestGetBalance(t *testing.T) {
 			response := map[string]interface{}{
 				"balance": int64(1000000), // 1 TRX
 			}
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}

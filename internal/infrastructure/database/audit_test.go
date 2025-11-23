@@ -45,10 +45,8 @@ func TestGetAuditLogs(t *testing.T) {
 			NewPayload: []byte(`{}`),
 			IP:         "192.168.1.1",
 		}
-		LogAudit(auditLog)
-	}
-
-	// Test retrieval
+		_ = LogAudit(auditLog)
+	} // Test retrieval
 	logs, err := GetAuditLogs(userID, 10, 0)
 	if err != nil {
 		t.Errorf("GetAuditLogs failed: %v", err)
@@ -77,7 +75,7 @@ func TestGetAuditLogsByAction(t *testing.T) {
 		NewPayload: []byte(`{}`),
 		IP:         "192.168.1.1",
 	}
-	LogAudit(auditLog)
+	_ = LogAudit(auditLog)
 
 	// Test retrieval by action
 	logs, err := GetAuditLogsByAction("UNIQUE_ACTION_TEST", 10, 0)

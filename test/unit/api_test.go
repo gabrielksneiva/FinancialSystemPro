@@ -105,7 +105,7 @@ func TestFiberApp_JSONResponse(t *testing.T) {
 	resp, _ := app.Test(req)
 
 	var body map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&body)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 
 	if body["message"] != "success" {
 		t.Errorf("Expected message 'success', got %v", body["message"])
@@ -135,7 +135,7 @@ func TestFiberApp_ParseJSON(t *testing.T) {
 	resp, _ := app.Test(req)
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	if result["received"] != "10.50" {
 		t.Errorf("Expected '10.50', got %v", result["received"])

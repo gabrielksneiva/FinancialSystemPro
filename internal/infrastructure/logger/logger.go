@@ -33,7 +33,7 @@ func ProvideLogger() (*zap.Logger, error) {
 	}
 
 	// Defer flush para garantir que logs sejam escritos
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	globalLogger = logger
 	return logger, nil

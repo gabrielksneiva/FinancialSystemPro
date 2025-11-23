@@ -15,7 +15,7 @@ import (
 // TestCircuitBreakerIntegration testa integração do circuit breaker entre contextos
 func TestCircuitBreakerIntegration(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	breakerManager := breaker.NewBreakerManager(logger)
 

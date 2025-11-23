@@ -40,8 +40,7 @@ func NewTronGRPCClient(endpoint string) (*TronGRPCClient, error) {
 	creds := credentials.NewTLS(tlsConfig)
 
 	// Conectar ao servidor gRPC
-	conn, err := grpc.DialContext(
-		context.Background(),
+	conn, err := grpc.NewClient(
 		endpoint,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithKeepaliveParams(kacp),
@@ -92,8 +91,7 @@ func (c *TronGRPCClient) Reconnect() error {
 	}
 	creds := credentials.NewTLS(tlsConfig)
 
-	conn, err := grpc.DialContext(
-		context.Background(),
+	conn, err := grpc.NewClient(
 		c.endpoint,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithKeepaliveParams(kacp),

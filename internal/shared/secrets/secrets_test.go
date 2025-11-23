@@ -49,7 +49,7 @@ func TestLocalSecretManagerDelete(t *testing.T) {
 	manager := NewLocalSecretManager()
 
 	// Store a value
-	manager.Store("delete_key", "delete_value")
+	_ = manager.Store("delete_key", "delete_value")
 
 	// Delete it
 	err := manager.Delete("delete_key")
@@ -68,7 +68,7 @@ func TestLocalSecretManagerExists(t *testing.T) {
 	manager := NewLocalSecretManager()
 
 	// Store a value
-	manager.Store("exists_key", "exists_value")
+	_ = manager.Store("exists_key", "exists_value")
 
 	// Check it exists
 	if !manager.Exists("exists_key") {
@@ -111,7 +111,7 @@ func TestVaultSecretManagerStore(t *testing.T) {
 
 		// Decode request body
 		var payload map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&payload)
+		_ = json.NewDecoder(r.Body).Decode(&payload)
 
 		data, ok := payload["data"].(map[string]interface{})
 		if !ok || data["value"] != "test_value" {
@@ -148,7 +148,7 @@ func TestVaultSecretManagerRetrieve(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -209,7 +209,7 @@ func TestVaultSecretManagerExists(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		} else {
 			// Return 404 for non-existing key
 			w.WriteHeader(http.StatusNotFound)

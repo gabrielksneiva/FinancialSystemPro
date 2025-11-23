@@ -10,7 +10,7 @@ import (
 
 func Start() {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	// Carrega variáveis de ambiente do arquivo .env (opcional em produção)
 	err := godotenv.Load()
@@ -40,5 +40,5 @@ func Start() {
 	<-make(chan struct{})
 
 	// Para a aplicação
-	app.Stop(context.Background())
+	_ = app.Stop(context.Background())
 }

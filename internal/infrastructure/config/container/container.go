@@ -283,7 +283,7 @@ func StartServer(
 				}
 			}
 
-			go app.Listen(":3000")
+			go func() { _ = app.Listen(":3000") }()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {

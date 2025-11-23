@@ -67,7 +67,7 @@ func (s *TransactionService) ProcessDeposit(ctx context.Context, userID uuid.UUI
 			zap.String("breaker_state", breaker.State().String()),
 		)
 		tx.Fail("failed to get user wallet")
-		s.txRepo.Update(ctx, tx)
+		_ = s.txRepo.Update(ctx, tx)
 		return err
 	}
 
@@ -78,7 +78,7 @@ func (s *TransactionService) ProcessDeposit(ctx context.Context, userID uuid.UUI
 	if err := s.walletRepo.UpdateBalance(ctx, userID, newBalance); err != nil {
 		s.logger.Error("failed to update balance", zap.Error(err))
 		tx.Fail("failed to update balance")
-		s.txRepo.Update(ctx, tx)
+		_ = s.txRepo.Update(ctx, tx)
 		return err
 	}
 
@@ -139,13 +139,13 @@ func (s *TransactionService) ProcessWithdraw(ctx context.Context, userID uuid.UU
 	if err := s.walletRepo.UpdateBalance(ctx, userID, newBalance); err != nil {
 		s.logger.Error("failed to update balance", zap.Error(err))
 		tx.Fail("failed to update balance")
-		s.txRepo.Update(ctx, tx)
+		_ = s.txRepo.Update(ctx, tx)
 		return err
 	}
 
 	// Marcar como concluída
 	tx.Complete("withdraw-" + tx.ID.String())
-	s.txRepo.Update(ctx, tx)
+	_ = s.txRepo.Update(ctx, tx)
 
 	// Publicar evento
 	s.eventBus.PublishAsync(ctx, events.NewWithdrawCompletedEvent(

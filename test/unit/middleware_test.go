@@ -367,7 +367,7 @@ func BenchmarkJWTMiddleware(b *testing.B) {
 		authHeader := c.Get("Authorization")
 		if authHeader != "" {
 			tokenString := authHeader[7:]
-			utils.DecodeJWTToken(tokenString)
+			_, _ = utils.DecodeJWTToken(tokenString)
 		}
 		return c.Next()
 	})
@@ -380,6 +380,6 @@ func BenchmarkJWTMiddleware(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
-		app.Test(req)
+		_, _ = app.Test(req)
 	}
 }
