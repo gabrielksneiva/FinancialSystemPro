@@ -1,16 +1,17 @@
 package repositories
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type NewDatabase struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Logger *zap.Logger
 }
 
 func (d *NewDatabase) Insert(value any) error {
@@ -66,8 +67,10 @@ func (db *NewDatabase) Balance(userID uuid.UUID) (decimal.Decimal, error) {
 
 // SaveWalletInfo salva as informações de carteira TRON do usuário (private key criptografada)
 func (db *NewDatabase) SaveWalletInfo(userID uuid.UUID, tronAddress, encryptedPrivKey string) error {
-	// DEBUG: Verificar o que está sendo passado
-	fmt.Printf("🔍 SaveWalletInfo: userID=%s, tronAddress='%s', len=%d\n", userID.String(), tronAddress, len(tronAddress))
+	db.Logger.Debug("saving wallet info",
+		zap.String("user_id", userID.String()),
+		zap.String("tron_address", tronAddress[:min(len(tronAddress), 20)]+"..."),
+	)
 
 	wallet := WalletInfo{
 		UserID:           userID,
@@ -75,15 +78,23 @@ func (db *NewDatabase) SaveWalletInfo(userID uuid.UUID, tronAddress, encryptedPr
 		EncryptedPrivKey: encryptedPrivKey,
 	}
 
-	// DEBUG: Verificar o struct antes de salvar
-	fmt.Printf("🔍 Struct antes de Create: TronAddress='%s', len=%d\n", wallet.TronAddress, len(wallet.TronAddress))
-
 	err := db.DB.Create(&wallet).Error
-
-	// DEBUG: Verificar o struct DEPOIS de salvar
-	fmt.Printf("🔍 Struct DEPOIS de Create: TronAddress='%s', len=%d, err=%v\n", wallet.TronAddress, len(wallet.TronAddress), err)
+	if err != nil {
+		db.Logger.Error("failed to save wallet info",
+			zap.String("user_id", userID.String()),
+			zap.Error(err),
+		)
+	}
 
 	return err
+}
+
+// min helper function
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // GetWalletInfo retorna as informações de carteira TRON do usuário

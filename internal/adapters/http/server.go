@@ -3,21 +3,26 @@ package http
 import (
 	"context"
 	"financial-system-pro/internal/infrastructure/config/container"
-	"fmt"
 
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func Start() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
 	// Carrega variáveis de ambiente do arquivo .env (opcional em produção)
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Warning: Error loading .env file:", err)
+		logger.Info("Warning: Error loading .env file",
+			zap.Error(err),
+		)
 	} else {
-		fmt.Println("✅ .env file loaded successfully")
+		logger.Info(".env file loaded successfully")
 	}
 
-	fmt.Println("Initializing application with dependency injection...")
+	logger.Info("Initializing application with dependency injection")
 
 	// Cria a aplicação com fx
 	app := container.New()
@@ -25,7 +30,9 @@ func Start() {
 	// Inicia o fx com um context válido
 	errStart := app.Start(context.Background())
 	if errStart != nil {
-		fmt.Printf("Error starting application: %v\n", errStart)
+		logger.Error("Error starting application",
+			zap.Error(errStart),
+		)
 		return
 	}
 

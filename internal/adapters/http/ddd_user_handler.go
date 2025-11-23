@@ -8,6 +8,7 @@ import (
 	"financial-system-pro/internal/shared/utils"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
@@ -42,6 +43,11 @@ func (h *DDDUserHandler) CreateUser(ctx *fiber.Ctx) error {
 	user, err := h.userService.CreateUser(context.Background(), createUserReq.Email, createUserReq.Password)
 	if err != nil {
 		h.logger.Error("failed to create user", zap.Error(err), zap.String("email", createUserReq.Email))
+
+		// Audit: Log failed user creation
+		auditHelper := NewAuditLogHelper(h.logger)
+		auditHelper.LogUserCreation(uuid.Nil, createUserReq.Email, false, ctx)
+
 		if appErr, ok := err.(*errors.AppError); ok {
 			return ctx.Status(appErr.StatusCode).JSON(appErr)
 		}
@@ -49,6 +55,10 @@ func (h *DDDUserHandler) CreateUser(ctx *fiber.Ctx) error {
 			"error": "Failed to create user",
 		})
 	}
+
+	// Audit: Log successful user creation
+	auditHelper := NewAuditLogHelper(h.logger)
+	auditHelper.LogUserCreation(user.ID, createUserReq.Email, true, ctx)
 
 	// Evento PublishUserCreated já foi disparado dentro de CreateUser
 	h.logger.Info("user created successfully", zap.String("user_id", user.ID.String()), zap.String("email", user.Email))
@@ -74,6 +84,11 @@ func (h *DDDUserHandler) Login(ctx *fiber.Ctx) error {
 	user, err := h.userService.Authenticate(context.Background(), loginReq.Email, loginReq.Password)
 	if err != nil {
 		h.logger.Warn("authentication failed", zap.Error(err), zap.String("email", loginReq.Email))
+
+		// Audit: Log failed login attempt (use empty UUID for failed authentication)
+		auditHelper := NewAuditLogHelper(h.logger)
+		auditHelper.LogLoginAttempt(uuid.Nil, loginReq.Email, false, ctx)
+
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid credentials",
 		})
@@ -91,7 +106,9 @@ func (h *DDDUserHandler) Login(ctx *fiber.Ctx) error {
 		})
 	}
 
-	// Evento PublishUserAuthenticated já foi disparado dentro de Authenticate
+	// Audit: Log successful login
+	auditHelper := NewAuditLogHelper(h.logger)
+	auditHelper.LogLoginAttempt(user.ID, loginReq.Email, true, ctx) // Evento PublishUserAuthenticated já foi disparado dentro de Authenticate
 	h.logger.Info("user authenticated successfully", zap.String("user_id", user.ID.String()), zap.String("email", user.Email))
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{

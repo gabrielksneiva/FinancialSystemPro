@@ -84,8 +84,15 @@ func (h *DDDTransactionHandler) Deposit(ctx *fiber.Ctx) error {
 		return nil, h.transactionService.ProcessDeposit(context.Background(), userID, amount, depositReq.CallbackURL)
 	})
 
+	// Initialize audit helper
+	auditHelper := NewAuditLogHelper(h.logger)
+
 	if err != nil {
 		h.logger.Error("failed to process deposit", zap.Error(err), zap.String("user_id", userID.String()))
+
+		// Audit: Log failed deposit
+		auditHelper.LogDeposit(userID, amount.String(), false, ctx)
+
 		if err.Error() == "circuit breaker is open" {
 			return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 				"error": "Service temporarily unavailable (circuit breaker open)",
@@ -93,6 +100,9 @@ func (h *DDDTransactionHandler) Deposit(ctx *fiber.Ctx) error {
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process deposit"})
 	}
+
+	// Audit: Log successful deposit
+	auditHelper.LogDeposit(userID, amount.String(), true, ctx)
 
 	h.logger.Info("deposit processed successfully", zap.String("user_id", userID.String()), zap.String("amount", amount.String()))
 
@@ -151,8 +161,15 @@ func (h *DDDTransactionHandler) Withdraw(ctx *fiber.Ctx) error {
 		return nil, h.transactionService.ProcessWithdraw(context.Background(), userID, amount)
 	})
 
+	// Initialize audit helper
+	auditHelper := NewAuditLogHelper(h.logger)
+
 	if err != nil {
 		h.logger.Error("failed to process withdraw", zap.Error(err), zap.String("user_id", userID.String()))
+
+		// Audit: Log failed withdraw
+		auditHelper.LogWithdraw(userID, amount.String(), false, ctx)
+
 		if err.Error() == "circuit breaker is open" {
 			return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 				"error": "Service temporarily unavailable (circuit breaker open)",
@@ -160,6 +177,9 @@ func (h *DDDTransactionHandler) Withdraw(ctx *fiber.Ctx) error {
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process withdraw"})
 	}
+
+	// Audit: Log successful withdraw
+	auditHelper.LogWithdraw(userID, amount.String(), true, ctx)
 
 	h.logger.Info("withdraw processed successfully", zap.String("user_id", userID.String()), zap.String("amount", amount.String()))
 

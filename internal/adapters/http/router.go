@@ -60,36 +60,50 @@ func router(app *fiber.App, userService services.UserServiceInterface, authServi
 	// Test endpoint for queue
 	app.Post("/api/queue/test-deposit", handler.TestQueueDeposit)
 
-	usersRoutes(app, handler)
-	transactionsRoutes(app, handler)
-	tronRoutes(app, handler)
+	// Setup versioned API routes
+	setupV1Routes(app, handler)
+	// Future: setupV2Routes(app, handler)
 }
 
-func tronRoutes(app *fiber.App, handler *NewHandler) {
-	protectedPaths := app.Group("/api/tron", VerifyJWTMiddleware())
-	protectedPaths.Get("/balance", handler.GetTronBalance)
-	protectedPaths.Post("/send", handler.SendTronTransaction)
-	protectedPaths.Get("/tx-status", handler.GetTronTransactionStatus)
-	protectedPaths.Post("/wallet", handler.CreateTronWallet)
-	protectedPaths.Get("/network", handler.CheckTronNetwork)
-	protectedPaths.Post("/estimate-energy", handler.EstimateTronGas)
+// setupV1Routes configura as rotas da API v1
+func setupV1Routes(app *fiber.App, handler *NewHandler) {
+	v1 := app.Group("/api/v1")
 
-	// Novos endpoints RPC
-	protectedPaths.Get("/rpc-status", handler.GetRPCStatus)
-	protectedPaths.Get("/rpc-methods", handler.GetAvailableMethods)
-	protectedPaths.Post("/rpc-call", handler.CallRPCMethod)
+	// Users routes
+	v1.Post("/users", handler.CreateUser)
+	v1.Post("/login", handler.Login)
+
+	// Protected routes
+	protected := v1.Group("", VerifyJWTMiddleware())
+
+	// Audit routes (admin/monitoring)
+	protected.Get("/audit", handler.GetAuditLogs)
+	protected.Get("/audit/stats", handler.GetAuditStats)
+
+	// Transactions routes
+	protected.Post("/deposit", handler.rateLimiter.Middleware("deposit"), handler.Deposit)
+	protected.Post("/withdraw", handler.rateLimiter.Middleware("withdraw"), handler.Withdraw)
+	protected.Post("/transfer", handler.rateLimiter.Middleware("transfer"), handler.Transfer)
+	protected.Get("/balance", handler.Balance)
+	protected.Get("/wallet", handler.GetUserWallet)
+
+	// Tron routes
+	protected.Get("/tron/balance", handler.GetTronBalance)
+	protected.Post("/tron/send", handler.SendTronTransaction)
+	protected.Get("/tron/tx-status", handler.GetTronTransactionStatus)
+	protected.Post("/tron/wallet", handler.CreateTronWallet)
+	protected.Get("/tron/network", handler.CheckTronNetwork)
+	protected.Post("/tron/estimate-energy", handler.EstimateTronGas)
+	protected.Get("/tron/rpc-status", handler.GetRPCStatus)
+	protected.Get("/tron/rpc-methods", handler.GetAvailableMethods)
+	protected.Post("/tron/rpc-call", handler.CallRPCMethod)
 }
 
-func usersRoutes(app *fiber.App, handler *NewHandler) {
-	app.Post("/api/users", handler.CreateUser)
-	app.Post("/api/login", handler.Login)
-}
+// setupV2Routes configura as rotas da API v2 (para futuro com breaking changes)
+// func setupV2Routes(app *fiber.App, handler *NewHandler) {
+// 	v2 := app.Group("/api/v2")
 
-func transactionsRoutes(app *fiber.App, handler *NewHandler) {
-	protectedPaths := app.Group("/api", VerifyJWTMiddleware())
-	protectedPaths.Post("/deposit", handler.rateLimiter.Middleware("deposit"), handler.Deposit)
-	protectedPaths.Post("/withdraw", handler.rateLimiter.Middleware("withdraw"), handler.Withdraw)
-	protectedPaths.Post("/transfer", handler.rateLimiter.Middleware("transfer"), handler.Transfer)
-	protectedPaths.Get("/balance", handler.Balance)
-	protectedPaths.Get("/wallet", handler.GetUserWallet)
-}
+// 	// Adicionar rotas v2 com alterações quando necessário
+// 	// Por exemplo: v2.Post("/users", handler.CreateUserV2)
+// 	_ = v2 // placeholder para evitar erro de "imported but not used"
+// }

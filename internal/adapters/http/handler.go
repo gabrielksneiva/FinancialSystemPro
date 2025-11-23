@@ -679,3 +679,27 @@ func (h *NewHandler) TestQueueDeposit(ctx *fiber.Ctx) error {
 		"message": "Deposit task has been queued for processing",
 	})
 }
+
+// GetAuditLogs retorna logs de auditoria (placeholder - delegating to actual implementation)
+func (h *NewHandler) GetAuditLogs(ctx *fiber.Ctx) error {
+	// Note: This is a placeholder. In production, this would need:
+	// 1. Database access for audit logs
+	// 2. Proper authorization (admin only)
+	// 3. Pagination and filtering
+	h.logger.Info("audit logs endpoint called")
+
+	return ctx.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+		"error":   "Audit logs endpoint requires database integration",
+		"message": "Use database.GetAuditLogs() method directly or implement full AuditHandler",
+	})
+}
+
+// GetAuditStats retorna estatísticas de auditoria (placeholder)
+func (h *NewHandler) GetAuditStats(ctx *fiber.Ctx) error {
+	h.logger.Info("audit stats endpoint called")
+
+	return ctx.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+		"error":   "Audit stats endpoint requires implementation",
+		"message": "Future feature: statistics and analytics for audit logs",
+	})
+}
