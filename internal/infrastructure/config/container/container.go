@@ -17,6 +17,19 @@ import (
 	"financial-system-pro/internal/shared/tracing"
 	"financial-system-pro/internal/shared/validator"
 
+	// DDD Bounded Contexts - User
+	userSvc "financial-system-pro/internal/contexts/user/application/service"
+	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
+	userPers "financial-system-pro/internal/contexts/user/infrastructure/persistence"
+
+	// DDD Bounded Contexts - Transaction
+	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
+	txnRepo "financial-system-pro/internal/contexts/transaction/domain/repository"
+	txnPers "financial-system-pro/internal/contexts/transaction/infrastructure/persistence"
+
+	// DDD Bounded Contexts - Blockchain
+	bcPers "financial-system-pro/internal/contexts/blockchain/infrastructure/persistence"
+
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -303,51 +316,70 @@ func ProvideQueueManager(cfg Config, lg *zap.Logger, database *repositories.NewD
 }
 
 // ProvideUserRepository cria o repositório de usuários para o DDD User Context
-// Por enquanto retorna nil - será expandido após consolidar arquitetura
-func ProvideUserRepository(conn database.Connection) interface{} {
-	return nil
+func ProvideUserRepository(conn database.Connection) userRepo.UserRepository {
+	if conn == nil {
+		return nil
+	}
+	return userPers.NewPostgresUserRepository(conn)
 }
 
 // ProvideWalletRepository cria o repositório de wallets para o DDD User Context
-// Por enquanto retorna nil - será expandido após consolidar arquitetura
-func ProvideWalletRepository(conn database.Connection) interface{} {
-	return nil
+func ProvideWalletRepository(conn database.Connection) userRepo.WalletRepository {
+	if conn == nil {
+		return nil
+	}
+	return userPers.NewPostgresWalletRepository(conn)
 }
 
 // ProvideDDDUserService cria o UserService do DDD User Context
-// Por enquanto retorna nil - será expandido após consolidar arquitetura
 func ProvideDDDUserService(
-	userRepo interface{},
-	walletRepo interface{},
+	userRepoImpl userRepo.UserRepository,
+	walletRepoImpl userRepo.WalletRepository,
 	eventBus events.Bus,
 	lg *zap.Logger,
-) interface{} {
-	return nil
+) *userSvc.UserService {
+	if userRepoImpl == nil || walletRepoImpl == nil {
+		return nil
+	}
+	return userSvc.NewUserService(userRepoImpl, walletRepoImpl, eventBus, lg)
 }
 
 // ProvideTransactionRepository cria o repositório de transações para o DDD Transaction Context
-// Por enquanto retorna nil - será expandido após consolidar arquitetura
-func ProvideTransactionRepository(conn database.Connection) interface{} {
-	return nil
+func ProvideTransactionRepository(conn database.Connection) txnRepo.TransactionRepository {
+	if conn == nil {
+		return nil
+	}
+	return txnPers.NewPostgresTransactionRepository(conn)
 }
 
 // ProvideDDDTransactionService cria o TransactionService do DDD Transaction Context
-// Por enquanto retorna nil - será expandido após consolidar arquitetura
 func ProvideDDDTransactionService(
-	txnRepo interface{},
-	userRepo interface{},
-	walletRepo interface{},
+	txnRepoImpl txnRepo.TransactionRepository,
+	userRepoImpl userRepo.UserRepository,
+	walletRepoImpl userRepo.WalletRepository,
 	eventBus events.Bus,
 	breakerManager *breaker.BreakerManager,
 	lg *zap.Logger,
-) interface{} {
-	return nil
+) *txnSvc.TransactionService {
+	if txnRepoImpl == nil || userRepoImpl == nil || walletRepoImpl == nil {
+		return nil
+	}
+	return txnSvc.NewTransactionService(
+		txnRepoImpl,
+		userRepoImpl,
+		walletRepoImpl,
+		eventBus,
+		breakerManager,
+		lg,
+	)
 }
 
 // ProvideBlockchainTransactionRepository cria o repositório de transações blockchain
-// Por enquanto retorna nil - será expandido após consolidar arquitetura
-func ProvideBlockchainTransactionRepository(conn database.Connection) interface{} {
-	return nil
+func ProvideBlockchainTransactionRepository(conn database.Connection) *bcPers.PostgresBlockchainTransactionRepository {
+	if conn == nil {
+		return nil
+	}
+	return bcPers.NewPostgresBlockchainTransactionRepository(conn)
 }
 
 // New cria a aplicação com todas as dependências gerenciadas por fx
@@ -370,6 +402,14 @@ func New() *fx.App {
 		fx.Provide(ProvideTronService),
 		fx.Provide(ProvideTronWorkerPool),
 		fx.Provide(ProvideTransactionService),
+		// DDD Repositories
+		fx.Provide(ProvideUserRepository),
+		fx.Provide(ProvideWalletRepository),
+		fx.Provide(ProvideTransactionRepository),
+		fx.Provide(ProvideBlockchainTransactionRepository),
+		// DDD Services
+		fx.Provide(ProvideDDDUserService),
+		fx.Provide(ProvideDDDTransactionService),
 		fx.Invoke(StartServer),
 	)
 }
