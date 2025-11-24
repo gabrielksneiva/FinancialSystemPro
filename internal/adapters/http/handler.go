@@ -16,7 +16,7 @@ import (
 // startTime registra quando a aplicação iniciou
 var startTime = time.Now()
 
-type NewHandler struct {
+type Handler struct {
 	userService        services.UserServiceInterface
 	authService        services.AuthServiceInterface
 	transactionService services.TransactionServiceInterface
@@ -36,8 +36,8 @@ func NewHandlerForTesting(
 	queueManager QueueManagerInterface,
 	logger LoggerInterface,
 	rateLimiter RateLimiterInterface,
-) *NewHandler {
-	return &NewHandler{
+) *Handler {
+	return &Handler{
 		userService:        userService,
 		authService:        authService,
 		transactionService: transactionService,
@@ -49,7 +49,7 @@ func NewHandlerForTesting(
 }
 
 // handleAppError responde com status code e mensagem de erro do AppError
-func (h *NewHandler) handleAppError(ctx *fiber.Ctx, err *errors.AppError) error {
+func (h *Handler) handleAppError(ctx *fiber.Ctx, err *errors.AppError) error {
 	h.logger.Warn("API error",
 		zap.String("code", err.Code),
 		zap.String("message", err.Message),
@@ -59,7 +59,7 @@ func (h *NewHandler) handleAppError(ctx *fiber.Ctx, err *errors.AppError) error 
 }
 
 // checkDatabaseAvailable verifica se os serviços de banco estão disponíveis
-func (h *NewHandler) CheckDatabaseAvailable(ctx *fiber.Ctx) error {
+func (h *Handler) CheckDatabaseAvailable(ctx *fiber.Ctx) error {
 	if h.userService == nil || h.authService == nil || h.transactionService == nil {
 		return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error":   "Database connection not yet established",
@@ -80,7 +80,7 @@ func (h *NewHandler) CheckDatabaseAvailable(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/users [post]
-func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
+func (h *Handler) CreateUser(ctx *fiber.Ctx) error {
 	if err := h.CheckDatabaseAvailable(ctx); err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (h *NewHandler) CreateUser(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/login [post]
-func (h *NewHandler) Login(ctx *fiber.Ctx) error {
+func (h *Handler) Login(ctx *fiber.Ctx) error {
 	if err := h.CheckDatabaseAvailable(ctx); err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (h *NewHandler) Login(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/deposit [post]
-func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
+func (h *Handler) Deposit(ctx *fiber.Ctx) error {
 	if err := h.CheckDatabaseAvailable(ctx); err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func (h *NewHandler) Deposit(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/balance [get]
-func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
+func (h *Handler) Balance(ctx *fiber.Ctx) error {
 	userIDLocal := ctx.Locals("user_id")
 	if userIDLocal == nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
@@ -227,7 +227,7 @@ func (h *NewHandler) Balance(ctx *fiber.Ctx) error {
 // @Failure      404  {object}  map[string]interface{}}
 // @Failure      500  {object}  map[string]interface{}}
 // @Router       /api/wallet [get]
-func (h *NewHandler) GetUserWallet(ctx *fiber.Ctx) error {
+func (h *Handler) GetUserWallet(ctx *fiber.Ctx) error {
 	userIDLocal := ctx.Locals("user_id")
 	if userIDLocal == nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
@@ -276,7 +276,7 @@ func (h *NewHandler) GetUserWallet(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}}
 // @Failure      500  {object}  map[string]interface{}}
 // @Router       /api/withdraw [post]
-func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
+func (h *Handler) Withdraw(ctx *fiber.Ctx) error {
 	userIDLocal := ctx.Locals("user_id")
 	if userIDLocal == nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
@@ -336,7 +336,7 @@ func (h *NewHandler) Withdraw(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/transfer [post]
-func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
+func (h *Handler) Transfer(ctx *fiber.Ctx) error {
 	userIDLocal := ctx.Locals("user_id")
 	if userIDLocal == nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
@@ -380,7 +380,7 @@ func (h *NewHandler) Transfer(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/balance [get]
-func (h *NewHandler) GetTronBalance(ctx *fiber.Ctx) error {
+func (h *Handler) GetTronBalance(ctx *fiber.Ctx) error {
 	address := ctx.Query("address")
 	if address == "" {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "address is required"})
@@ -414,7 +414,7 @@ func (h *NewHandler) GetTronBalance(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/send [post]
-func (h *NewHandler) SendTronTransaction(ctx *fiber.Ctx) error {
+func (h *Handler) SendTronTransaction(ctx *fiber.Ctx) error {
 	var txRequest entities.TronTransactionRequest
 	if validErr := dto.ValidateRequest(ctx, &txRequest); validErr != nil {
 		return h.handleAppError(ctx, validErr)
@@ -458,7 +458,7 @@ func (h *NewHandler) SendTronTransaction(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/tx-status [get]
-func (h *NewHandler) GetTronTransactionStatus(ctx *fiber.Ctx) error {
+func (h *Handler) GetTronTransactionStatus(ctx *fiber.Ctx) error {
 	txHash := ctx.Query("tx_hash")
 	if txHash == "" {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "tx_hash is required"})
@@ -485,7 +485,7 @@ func (h *NewHandler) GetTronTransactionStatus(ctx *fiber.Ctx) error {
 // @Success      201  {object}  entities.TronWallet
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/wallet [post]
-func (h *NewHandler) CreateTronWallet(ctx *fiber.Ctx) error {
+func (h *Handler) CreateTronWallet(ctx *fiber.Ctx) error {
 	wallet, err := h.tronService.CreateWallet()
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -504,7 +504,7 @@ func (h *NewHandler) CreateTronWallet(ctx *fiber.Ctx) error {
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/network [get]
-func (h *NewHandler) CheckTronNetwork(ctx *fiber.Ctx) error {
+func (h *Handler) CheckTronNetwork(ctx *fiber.Ctx) error {
 	isConnected := h.tronService.IsTestnetConnected()
 
 	if !isConnected {
@@ -538,7 +538,7 @@ func (h *NewHandler) CheckTronNetwork(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/estimate-energy [post]
-func (h *NewHandler) EstimateTronGas(ctx *fiber.Ctx) error {
+func (h *Handler) EstimateTronGas(ctx *fiber.Ctx) error {
 	var estimateReq struct {
 		FromAddress string `json:"from_address" validate:"required"`
 		ToAddress   string `json:"to_address" validate:"required"`
@@ -584,7 +584,7 @@ func (h *NewHandler) EstimateTronGas(ctx *fiber.Ctx) error {
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/rpc-status [get]
-func (h *NewHandler) GetRPCStatus(ctx *fiber.Ctx) error {
+func (h *Handler) GetRPCStatus(ctx *fiber.Ctx) error {
 	status := h.tronService.GetConnectionStatus()
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -603,7 +603,7 @@ func (h *NewHandler) GetRPCStatus(ctx *fiber.Ctx) error {
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/rpc-methods [get]
-func (h *NewHandler) GetAvailableMethods(ctx *fiber.Ctx) error {
+func (h *Handler) GetAvailableMethods(ctx *fiber.Ctx) error {
 	methods := entities.GetAvailableTronRPCMethods()
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -625,7 +625,7 @@ func (h *NewHandler) GetAvailableMethods(ctx *fiber.Ctx) error {
 // @Failure      400  {object}  map[string]interface{}
 // @Failure      500  {object}  map[string]interface{}
 // @Router       /api/tron/rpc-call [post]
-func (h *NewHandler) CallRPCMethod(ctx *fiber.Ctx) error {
+func (h *Handler) CallRPCMethod(ctx *fiber.Ctx) error {
 	var rpcCall struct {
 		Method string        `json:"method" validate:"required"`
 		Params []interface{} `json:"params"`
@@ -660,7 +660,7 @@ func (h *NewHandler) CallRPCMethod(ctx *fiber.Ctx) error {
 // TestQueueDeposit testa o envio de uma tarefa de depósito à fila
 // POST /api/queue/test-deposit
 // Body: {"user_id": "uuid", "amount": "100.00"}
-func (h *NewHandler) TestQueueDeposit(ctx *fiber.Ctx) error {
+func (h *Handler) TestQueueDeposit(ctx *fiber.Ctx) error {
 	if h.queueManager == nil {
 		return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "Queue manager not initialized",
@@ -705,7 +705,7 @@ func (h *NewHandler) TestQueueDeposit(ctx *fiber.Ctx) error {
 }
 
 // GetAuditLogs retorna logs de auditoria (placeholder - delegating to actual implementation)
-func (h *NewHandler) GetAuditLogs(ctx *fiber.Ctx) error {
+func (h *Handler) GetAuditLogs(ctx *fiber.Ctx) error {
 	// Note: This is a placeholder. In production, this would need:
 	// 1. Database access for audit logs
 	// 2. Proper authorization (admin only)
@@ -719,7 +719,7 @@ func (h *NewHandler) GetAuditLogs(ctx *fiber.Ctx) error {
 }
 
 // GetAuditStats retorna estatísticas de auditoria (placeholder)
-func (h *NewHandler) GetAuditStats(ctx *fiber.Ctx) error {
+func (h *Handler) GetAuditStats(ctx *fiber.Ctx) error {
 	h.logger.Info("audit stats endpoint called")
 
 	return ctx.Status(fiber.StatusNotImplemented).JSON(fiber.Map{

@@ -14,7 +14,7 @@ import (
 )
 
 // setupTestHandler local para testes deste pacote seguindo Clean Arch
-func setupTestHandler() (*http.NewHandler, *fiber.App) {
+func setupTestHandler() (*http.Handler, *fiber.App) {
 	logger := zap.NewNop()
 
 	userService := &services.UserService{Logger: logger}

@@ -17,7 +17,7 @@ import (
 // @Success      200  {object}  dto.HealthStatus
 // @Success      503  {object}  dto.HealthStatus
 // @Router       /health/full [get]
-func (h *NewHandler) HealthCheckFull(ctx *fiber.Ctx) error {
+func (h *Handler) HealthCheckFull(ctx *fiber.Ctx) error {
 	status := dto.HealthStatus{
 		Status:   "healthy",
 		Uptime:   int64(time.Since(startTime).Seconds()),
@@ -84,7 +84,7 @@ func (h *NewHandler) HealthCheckFull(ctx *fiber.Ctx) error {
 // @Success      200  {object}  dto.ProbeResponse
 // @Failure      503  {object}  dto.ProbeResponse
 // @Router       /ready [get]
-func (h *NewHandler) ReadinessProbe(ctx *fiber.Ctx) error {
+func (h *Handler) ReadinessProbe(ctx *fiber.Ctx) error {
 	if h.userService == nil || h.transactionService == nil {
 		return ctx.Status(fiber.StatusServiceUnavailable).JSON(dto.ProbeResponse{
 			Ready:  false,
@@ -104,7 +104,7 @@ func (h *NewHandler) ReadinessProbe(ctx *fiber.Ctx) error {
 // @Produce      json
 // @Success      200  {object}  dto.ProbeResponse
 // @Router       /alive [get]
-func (h *NewHandler) LivenessProbe(ctx *fiber.Ctx) error {
+func (h *Handler) LivenessProbe(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(dto.ProbeResponse{
 		Alive: true,
 	})

@@ -299,7 +299,7 @@ func (m *MockRateLimiter) IsAllowed(userID string, action string) bool {
 }
 
 // SetupTestHandler cria um handler de teste com serviços mockados
-func SetupTestHandler() (*http.NewHandler, *fiber.App) {
+func SetupTestHandler() (*http.Handler, *fiber.App) {
 	userMock := &MockUserService{}
 	authMock := &MockAuthService{}
 	txMock := &MockTransactionService{}

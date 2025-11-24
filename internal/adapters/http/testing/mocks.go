@@ -299,7 +299,7 @@ func (m *MockRateLimiter) IsAllowed(userID string, action string) bool {
 }
 
 // SetupTestHandler cria um handler de teste com serviços mockados
-func SetupTestHandler() *http.NewHandler {
+func SetupTestHandler() *http.Handler {
 	userMock := &MockUserService{}
 	authMock := &MockAuthService{}
 	txMock := &MockTransactionService{}

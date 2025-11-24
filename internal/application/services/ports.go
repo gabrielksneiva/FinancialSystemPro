@@ -39,3 +39,17 @@ type QueuePort interface {
 type TronConfirmationPort interface {
 	SubmitConfirmationJob(userID uuid.UUID, txID uuid.UUID, txHash string, callbackURL string)
 }
+
+// TokenProvider abstrai criação de tokens (ex: JWT) para não acoplar serviços a lib específica.
+// Claims representadas por map[string]interface{} para manter flexibilidade.
+type TokenProvider interface {
+	CreateToken(claims map[string]interface{}) (string, error)
+}
+
+// PasswordHasher abstrai hashing e comparação de senhas.
+// Permite trocar algoritmo (bcrypt, argon2, scrypt) sem tocar regras de negócio.
+type PasswordHasher interface {
+	Compare(raw string, hashed string) (bool, error)
+	// Optionally used in user creation flows (não implementado ainda aqui)
+	Hash(raw string) (string, error)
+}

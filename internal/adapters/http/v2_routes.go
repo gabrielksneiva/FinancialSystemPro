@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"financial-system-pro/internal/contexts/transaction/application/service"
 	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
 	userSvc "financial-system-pro/internal/contexts/user/application/service"
 	"financial-system-pro/internal/shared/breaker"
@@ -15,7 +14,7 @@ import (
 )
 
 // registerV2DDDRoutes registra rotas v2 usando serviços DDD diretamente.
-func registerV2DDDRoutes(app *fiber.App, userService *userSvc.UserService, txnService *txnSvc.TransactionService, logger *zap.Logger, breakerManager *breaker.BreakerManager) {
+func registerV2DDDRoutes(app *fiber.App, userService *userSvc.UserService, txnService *txnSvc.TransactionService, _ *zap.Logger, _ *breaker.BreakerManager) {
 	api := app.Group("/v2")
 
 	// Users
@@ -138,4 +137,5 @@ func extractUserIDFromJWT(c *fiber.Ctx) (uuid.UUID, error) {
 }
 
 // Garantir uso do pacote service (import alias txnSvc já usado) para evitar import pruning
-var _ = service.NewTransactionService
+// reference utils to avoid pruning during build optimization
+var _ = utils.HashAString

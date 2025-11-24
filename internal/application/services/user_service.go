@@ -5,20 +5,28 @@ import (
 	"financial-system-pro/internal/domain/entities"
 	"financial-system-pro/internal/domain/errors"
 	repositories "financial-system-pro/internal/infrastructure/database"
-	"financial-system-pro/internal/shared/utils"
 	"strings"
 
 	"go.uber.org/zap"
 )
 
 type UserService struct {
-	Database      DatabasePort
-	Logger        *zap.Logger
-	WalletManager entities.WalletManager
+	Database       DatabasePort
+	Logger         *zap.Logger
+	WalletManager  entities.WalletManager
+	passwordHasher PasswordHasher
 }
 
 func NewUserService(db DatabasePort, logger *zap.Logger, walletManager entities.WalletManager) *UserService {
-	return &UserService{Database: db, Logger: logger, WalletManager: walletManager}
+	return &UserService{Database: db, Logger: logger, WalletManager: walletManager, passwordHasher: defaultPasswordHasher{}}
+}
+
+// WithPasswordHasher permite definir hasher customizado mantendo construtor antigo.
+func (s *UserService) WithPasswordHasher(ph PasswordHasher) *UserService {
+	if ph != nil {
+		s.passwordHasher = ph
+	}
+	return s
 }
 
 func (s *UserService) CreateNewUser(userRequest *dto.UserRequest) *errors.AppError {
@@ -31,7 +39,11 @@ func (s *UserService) CreateNewUser(userRequest *dto.UserRequest) *errors.AppErr
 		return errors.NewValidationError("email", "Email already registered")
 	}
 
-	hashedPassword, err := utils.HashAString(userRequest.Password)
+	// Garantir hasher default se struct instanciado manualmente em testes antigos
+	if s.passwordHasher == nil {
+		s.passwordHasher = defaultPasswordHasher{}
+	}
+	hashedPassword, err := s.passwordHasher.Hash(userRequest.Password)
 	if err != nil {
 		return errors.NewInternalError("password hashing failed", nil)
 	}

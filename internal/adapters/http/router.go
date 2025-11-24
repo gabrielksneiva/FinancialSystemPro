@@ -21,7 +21,7 @@ func router(app *fiber.App, userService services.UserServiceInterface, authServi
 	queueManagerAdapter := NewQueueManagerAdapter(qm)
 	rateLimiterAdapter := NewRateLimiterAdapter(rateLimiter)
 
-	handler := &NewHandler{
+	handler := &Handler{
 		userService:        userService,
 		authService:        authService,
 		transactionService: trasactionService,
@@ -66,7 +66,7 @@ func router(app *fiber.App, userService services.UserServiceInterface, authServi
 }
 
 // setupV1Routes configura as rotas da API v1
-func setupV1Routes(app *fiber.App, handler *NewHandler) {
+func setupV1Routes(app *fiber.App, handler *Handler) {
 	v1 := app.Group("/api/v1")
 
 	// Users routes
@@ -100,7 +100,7 @@ func setupV1Routes(app *fiber.App, handler *NewHandler) {
 }
 
 // setupV2Routes configura as rotas da API v2 (para futuro com breaking changes)
-// func setupV2Routes(app *fiber.App, handler *NewHandler) {
+// func setupV2Routes(app *fiber.App, handler *Handler) {
 // 	v2 := app.Group("/api/v2")
 
 // 	// Adicionar rotas v2 com alterações quando necessário
