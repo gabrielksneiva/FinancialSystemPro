@@ -64,6 +64,67 @@ func NewTronService(vaultAddress, vaultPrivateKey string) *TronService {
 	return ts
 }
 
+// Implementação do BlockchainGatewayPort
+// ChainType identifica a blockchain tron.
+func (ts *TronService) ChainType() entities.BlockchainType { return entities.BlockchainTRON }
+
+// GenerateWallet implementa geração de carteira adaptada ao formato genérico.
+func (ts *TronService) GenerateWallet(ctx context.Context) (*entities.GeneratedWallet, error) {
+	wallet, err := ts.CreateWallet()
+	if err != nil {
+		return nil, err
+	}
+	return &entities.GeneratedWallet{
+		Address:    wallet.Address,
+		PublicKey:  wallet.PublicKey,
+		Blockchain: entities.BlockchainTRON,
+		CreatedAt:  time.Now().Unix(),
+		// UserID preenchido externamente quando associar ao usuário
+	}, nil
+}
+
+// EstimateFee converte lógica de energia em FeeQuote simplificada.
+func (ts *TronService) EstimateFee(ctx context.Context, fromAddress, toAddress string, amountBaseUnit int64) (*FeeQuote, error) {
+	gas, err := ts.EstimateGasForTransaction(fromAddress, toAddress, amountBaseUnit)
+	if err != nil {
+		return nil, err
+	}
+	// Simplificação: taxa proporcional à energia estimada (placeholder)
+	fee := gas // manter mesma unidade (SUN)
+	return &FeeQuote{AmountBaseUnit: amountBaseUnit, EstimatedFee: fee, FeeAsset: "TRX", Source: "tron_estimate"}, nil
+}
+
+// Broadcast envia transação e retorna hash adaptado.
+func (ts *TronService) Broadcast(ctx context.Context, fromAddress, toAddress string, amountBaseUnit int64, privateKey string) (TxHash, error) {
+	txHash, err := ts.SendTransaction(fromAddress, toAddress, amountBaseUnit, privateKey)
+	if err != nil {
+		return "", err
+	}
+	return TxHash(txHash), nil
+}
+
+// GetStatus retorna status genérico.
+func (ts *TronService) GetStatus(ctx context.Context, txHash TxHash) (*TxStatusInfo, error) {
+	status, err := ts.GetTransactionStatus(string(txHash))
+	if err != nil {
+		return &TxStatusInfo{Hash: txHash, Status: TxStatusFailed, ErrorMessage: err.Error()}, nil
+	}
+	var mapped TxStatus
+	switch status {
+	case "pending":
+		mapped = TxStatusPending
+	case "in_progress":
+		mapped = TxStatusInProgress
+	case "confirmed":
+		mapped = TxStatusConfirmed
+	case "not_found":
+		mapped = TxStatusUnknown
+	default:
+		mapped = TxStatusUnknown
+	}
+	return &TxStatusInfo{Hash: txHash, Status: mapped}, nil
+}
+
 // GetBalance retorna o saldo de uma conta Tron em SUN (1 TRX = 1.000.000 SUN)
 func (ts *TronService) GetBalance(address string) (int64, error) {
 	if address == "" {

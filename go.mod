@@ -22,8 +22,11 @@ require (
 	google.golang.org/grpc v1.77.0
 	gorm.io/datatypes v1.2.6
 	gorm.io/driver/postgres v1.6.0
+	gorm.io/driver/sqlite v1.4.3
 	gorm.io/gorm v1.30.1
 )
+
+require github.com/mattn/go-sqlite3 v1.14.15 // indirect
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

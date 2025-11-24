@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func router(app *fiber.App, userService services.UserServiceInterface, authService services.AuthServiceInterface, trasactionService services.TransactionServiceInterface, tronService services.TronServiceInterface, logger *zap.Logger, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
+func router(app *fiber.App, userService services.UserServiceInterface, authService services.AuthServiceInterface, trasactionService services.TransactionServiceInterface, tronService services.TronServiceInterface, multiChainWalletService *services.MultiChainWalletService, logger *zap.Logger, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
 	rateLimiter := NewRateLimiter(logger)
 
 	// Criar adapters para as interfaces
@@ -29,6 +29,9 @@ func router(app *fiber.App, userService services.UserServiceInterface, authServi
 		queueManager:       queueManagerAdapter,
 		logger:             loggerAdapter,
 		rateLimiter:        rateLimiterAdapter,
+	}
+	if multiChainWalletService != nil {
+		handler.WithMultiChainWalletService(multiChainWalletService)
 	}
 
 	// Health check endpoints (sem autenticação, sem dependência de DB)
@@ -86,6 +89,7 @@ func setupV1Routes(app *fiber.App, handler *Handler) {
 	protected.Post("/transfer", handler.rateLimiter.Middleware("transfer"), handler.Transfer)
 	protected.Get("/balance", handler.Balance)
 	protected.Get("/wallet", handler.GetUserWallet)
+	protected.Post("/wallets/generate", handler.GenerateWallet)
 
 	// Tron routes
 	protected.Get("/tron/balance", handler.GetTronBalance)

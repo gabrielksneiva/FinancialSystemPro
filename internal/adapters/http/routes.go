@@ -20,6 +20,7 @@ func RegisterRoutes(
 	authService *services.AuthService,
 	transactionService *services.TransactionService,
 	tronService *services.TronService,
+	multiChainWalletService *services.MultiChainWalletService,
 	logger *zap.Logger,
 	qm *workers.QueueManager,
 	breakerManager *breaker.BreakerManager,
@@ -27,7 +28,7 @@ func RegisterRoutes(
 	dddTransactionService *txnDDD.TransactionService,
 ) {
 	// Legacy rotas
-	router(app, userService, authService, transactionService, tronService, logger, qm, breakerManager)
+	router(app, userService, authService, transactionService, tronService, multiChainWalletService, logger, qm, breakerManager)
 	// Rotas v2 baseadas nos bounded contexts DDD
 	if dddUserService != nil && dddTransactionService != nil {
 		registerV2DDDRoutes(app, dddUserService, dddTransactionService, logger, breakerManager)

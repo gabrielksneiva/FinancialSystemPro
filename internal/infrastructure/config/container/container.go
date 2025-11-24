@@ -43,6 +43,7 @@ type RegisterRoutesFunc func(
 	authService *services.AuthService,
 	transactionService *services.TransactionService,
 	tronService *services.TronService,
+	multiChainWalletService *services.MultiChainWalletService,
 	logger *zap.Logger,
 	qm *workers.QueueManager,
 	breakerManager *breaker.BreakerManager,
@@ -154,6 +155,42 @@ func ProvideTransactionService(
 	return services.NewTransactionService(database, nil, tronSvc, tronPool, eventBus, lg)
 }
 
+// ProvideEthereumService cria serviço Ethereum simples
+func ProvideEthereumService() *services.EthereumService { return services.NewEthereumService() }
+
+// ProvideBlockchainRegistry cria registro multi-chain com Tron + Ethereum
+func ProvideBlockchainRegistry(tronSvc *services.TronService, ethSvc *services.EthereumService) *services.BlockchainRegistry {
+	reg := services.NewBlockchainRegistry()
+	if tronSvc != nil {
+		reg.Register(tronSvc)
+	}
+	if ethSvc != nil {
+		reg.Register(ethSvc)
+	}
+	return reg
+}
+
+// ProvideOnChainWalletRepository cria adapter de wallets multi-chain
+func ProvideOnChainWalletRepository(db *repositories.NewDatabase) services.OnChainWalletRepositoryPort {
+	if db == nil {
+		return nil
+	}
+	return services.NewOnChainWalletRepositoryAdapter(db)
+}
+
+// ProvideMultiChainWalletService constrói serviço e injeta criptografia se disponível
+func ProvideMultiChainWalletService(reg *services.BlockchainRegistry, repo services.OnChainWalletRepositoryPort) *services.MultiChainWalletService {
+	if reg == nil || repo == nil {
+		return nil
+	}
+	svc := services.NewMultiChainWalletService(reg, repo)
+	// tenta criar provider; se falhar permanece Noop
+	if enc, err := services.NewAESEncryptionProviderFromEnv(); err == nil && enc != nil {
+		svc.WithEncryption(enc)
+	}
+	return svc
+}
+
 // ProvideTronService cria o serviço de Tron
 func ProvideTronService(cfg Config) *services.TronService {
 	return services.NewTronService(cfg.TronVaultAddress, cfg.TronVaultPrivateKey)
@@ -210,6 +247,7 @@ func StartServer(
 	authService *services.AuthService,
 	transactionService *services.TransactionService,
 	tronService *services.TronService,
+	multiChainWalletService *services.MultiChainWalletService,
 	registerRoutes RegisterRoutesFunc,
 	qm *workers.QueueManager,
 	breakerManager *breaker.BreakerManager,
@@ -246,14 +284,14 @@ func StartServer(
 				// Para isso, vamos usar a função RegisterDDDRoutes se disponível
 				// Por enquanto, registrar apenas legacy routes
 				if registerRoutes != nil {
-					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager, dddUserService, dddTransactionService)
+					registerRoutes(app, userService, authService, transactionService, tronService, multiChainWalletService, lg, qm, breakerManager, dddUserService, dddTransactionService)
 				} else {
 					registerFiberHealthChecks(app)
 				}
 			} else {
 				// Registrar legacy rotas
 				if registerRoutes != nil {
-					registerRoutes(app, userService, authService, transactionService, tronService, lg, qm, breakerManager, dddUserService, dddTransactionService)
+					registerRoutes(app, userService, authService, transactionService, tronService, multiChainWalletService, lg, qm, breakerManager, dddUserService, dddTransactionService)
 				} else {
 					// Fallback: só health checks
 					registerFiberHealthChecks(app)
@@ -421,6 +459,10 @@ func New() *fx.App {
 		fx.Provide(ProvideTronService),
 		fx.Provide(ProvideTronWorkerPool),
 		fx.Provide(ProvideTransactionService),
+		fx.Provide(ProvideEthereumService),
+		fx.Provide(ProvideBlockchainRegistry),
+		fx.Provide(ProvideOnChainWalletRepository),
+		fx.Provide(ProvideMultiChainWalletService),
 		// DDD Repositories
 		fx.Provide(ProvideUserRepository),
 		fx.Provide(ProvideWalletRepository),
@@ -429,6 +471,28 @@ func New() *fx.App {
 		// DDD Services
 		fx.Provide(ProvideDDDUserService),
 		fx.Provide(ProvideDDDTransactionService),
+		// Link legacy services with multi-chain components
+		fx.Invoke(LinkUserMultiChain),
+		fx.Invoke(LinkTransactionMultiChain),
 		fx.Invoke(StartServer),
 	)
+}
+
+// LinkUserMultiChain associa MultiChainWalletService ao UserService legacy
+func LinkUserMultiChain(userService *services.UserService, multi *services.MultiChainWalletService) {
+	if userService != nil && multi != nil {
+		userService.WithMultiChainWalletService(multi)
+	}
+}
+
+// LinkTransactionMultiChain associa ChainRegistry e OnChainWalletRepository ao TransactionService
+func LinkTransactionMultiChain(txService *services.TransactionService, reg *services.BlockchainRegistry, repo services.OnChainWalletRepositoryPort) {
+	if txService != nil {
+		if reg != nil {
+			txService.WithChainRegistry(reg)
+		}
+		if repo != nil {
+			txService.WithOnChainWalletRepository(repo)
+		}
+	}
 }

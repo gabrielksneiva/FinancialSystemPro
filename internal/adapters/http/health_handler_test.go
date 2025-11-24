@@ -29,6 +29,7 @@ func setupTestHandler() (*http.Handler, *fiber.App) {
 		nil,
 		http.NewZapLoggerAdapter(logger),
 		http.NewRateLimiter(logger),
+		nil,
 	)
 
 	app := fiber.New()

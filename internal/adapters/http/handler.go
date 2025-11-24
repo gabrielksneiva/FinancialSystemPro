@@ -17,13 +17,14 @@ import (
 var startTime = time.Now()
 
 type Handler struct {
-	userService        services.UserServiceInterface
-	authService        services.AuthServiceInterface
-	transactionService services.TransactionServiceInterface
-	tronService        services.TronServiceInterface
-	queueManager       QueueManagerInterface
-	logger             LoggerInterface
-	rateLimiter        RateLimiterInterface
+	userService         services.UserServiceInterface
+	authService         services.AuthServiceInterface
+	transactionService  services.TransactionServiceInterface
+	tronService         services.TronServiceInterface
+	queueManager        QueueManagerInterface
+	logger              LoggerInterface
+	rateLimiter         RateLimiterInterface
+	multiChainWalletSvc *services.MultiChainWalletService // opcional para geração multi-chain
 }
 
 // NewHandlerForTesting creates a handler instance for testing purposes
@@ -36,16 +37,24 @@ func NewHandlerForTesting(
 	queueManager QueueManagerInterface,
 	logger LoggerInterface,
 	rateLimiter RateLimiterInterface,
+	multiChainWalletSvc *services.MultiChainWalletService,
 ) *Handler {
 	return &Handler{
-		userService:        userService,
-		authService:        authService,
-		transactionService: transactionService,
-		tronService:        tronService,
-		queueManager:       queueManager,
-		logger:             logger,
-		rateLimiter:        rateLimiter,
+		userService:         userService,
+		authService:         authService,
+		transactionService:  transactionService,
+		tronService:         tronService,
+		queueManager:        queueManager,
+		logger:              logger,
+		rateLimiter:         rateLimiter,
+		multiChainWalletSvc: multiChainWalletSvc,
 	}
+}
+
+// WithMultiChainWalletService injeta serviço multi-chain (builder pattern)
+func (h *Handler) WithMultiChainWalletService(svc *services.MultiChainWalletService) *Handler {
+	h.multiChainWalletSvc = svc
+	return h
 }
 
 // handleAppError responde com status code e mensagem de erro do AppError
@@ -270,7 +279,7 @@ func (h *Handler) GetUserWallet(ctx *fiber.Ctx) error {
 // @Tags         Transactions
 // @Accept       json
 // @Produce      json
-// @Param        withdrawRequest  body  dto.WithdrawRequest  true  "Dados do saque. withdraw_type='internal' debita saldo, withdraw_type='tron' envia da vault para carteira TRON do usuário"
+// @Param        withdrawRequest  body  dto.WithdrawRequest  true  "Dados do saque. withdraw_type='internal' debita saldo, withdraw_type='tron' envia da vault TRON, withdraw_type='ethereum' envia da vault ETH para carteira do usuário (on-chain_wallets). Pode usar 'chain' explicitamente."
 // @Security     BearerAuth
 // @Success      202  {object}  map[string]interface{}}
 // @Failure      400  {object}  map[string]interface{}}
@@ -306,8 +315,21 @@ func (h *Handler) Withdraw(ctx *fiber.Ctx) error {
 	}
 
 	var resp *services.ServiceResponse
-	if withdrawType == "tron" {
-		resp, err = h.transactionService.WithdrawTron(userID, amount, withdrawRequest.CallbackURL)
+	chainParam := withdrawRequest.Chain
+	if chainParam == "" && (withdrawType == "tron" || withdrawType == "ethereum") {
+		chainParam = withdrawType
+	}
+	if chainParam != "" {
+		var chainType entities.BlockchainType
+		switch chainParam {
+		case "tron":
+			chainType = entities.BlockchainTRON
+		case "ethereum":
+			chainType = entities.BlockchainEthereum
+		default:
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unsupported chain"})
+		}
+		resp, err = h.transactionService.WithdrawOnChain(userID, chainType, amount, withdrawRequest.CallbackURL)
 	} else {
 		resp, err = h.transactionService.Withdraw(userID, amount, withdrawRequest.CallbackURL)
 	}
@@ -492,6 +514,55 @@ func (h *Handler) CreateTronWallet(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(wallet)
+}
+
+// GenerateWallet multi-chain (tron, ethereum)
+// @Summary      Gera nova wallet multi-chain
+// @Description  Endpoint para gerar carteira on-chain para chain suportada caso não exista
+// @Tags         Wallets
+// @Accept       json
+// @Produce      json
+// @Param        generateWalletRequest  body  dto.GenerateWalletRequest  true  "Dados de geração (chain)"
+// @Security     BearerAuth
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /api/v1/wallets/generate [post]
+func (h *Handler) GenerateWallet(ctx *fiber.Ctx) error {
+	userIDLocal := ctx.Locals("user_id")
+	if userIDLocal == nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id not found"})
+	}
+	userID, ok := userIDLocal.(string)
+	if !ok || userID == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+	if h.multiChainWalletSvc == nil || h.multiChainWalletSvc.Registry == nil {
+		return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "Multi-chain wallet service not available"})
+	}
+	var req dto.GenerateWalletRequest
+	if verr := dto.ValidateRequest(ctx, &req); verr != nil {
+		return h.handleAppError(ctx, verr)
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user UUID"})
+	}
+	var chain entities.BlockchainType
+	switch req.Chain {
+	case "tron":
+		chain = entities.BlockchainTRON
+	case "ethereum":
+		chain = entities.BlockchainEthereum
+	default:
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unsupported chain"})
+	}
+	gen, gErr := h.multiChainWalletSvc.GenerateAndPersist(ctx.Context(), uid, chain)
+	if gErr != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": gErr.Error()})
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "Wallet generated", "chain": chain, "address": gen.Address})
 }
 
 // CheckTronNetwork godoc

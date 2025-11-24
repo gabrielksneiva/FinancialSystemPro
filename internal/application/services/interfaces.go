@@ -28,6 +28,9 @@ type AuthServiceInterface interface {
 type TransactionServiceInterface interface {
 	Deposit(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
 	Withdraw(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	// WithdrawOnChain executa saque on-chain genérico usando tipo de blockchain
+	WithdrawOnChain(userID string, chain entities.BlockchainType, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	// WithdrawTron mantido para compatibilidade temporária; delega para WithdrawOnChain
 	WithdrawTron(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
 	Transfer(userID string, amount decimal.Decimal, to string, callbackURL string) (*ServiceResponse, error)
 	GetBalance(userID string) (decimal.Decimal, error)

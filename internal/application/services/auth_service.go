@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"financial-system-pro/internal/application/dto"
 	"financial-system-pro/internal/domain/errors"
 	"financial-system-pro/internal/shared/utils"
@@ -11,7 +12,8 @@ import (
 )
 
 type AuthService struct {
-	Database       DatabasePort
+	Database       DatabasePort // manter por compatibilidade transitória
+	UserRepo       UserRepositoryPort
 	Logger         *zap.Logger
 	tokenProvider  TokenProvider
 	passwordHasher PasswordHasher
@@ -19,7 +21,7 @@ type AuthService struct {
 
 func NewAuthService(db DatabasePort, logger *zap.Logger) *AuthService {
 	// Backward compatible constructor: sets default adapters using existing utils
-	return &AuthService{Database: db, Logger: logger,
+	return &AuthService{Database: db, UserRepo: NewUserRepositoryAdapter(db), Logger: logger,
 		tokenProvider:  defaultTokenProvider{},
 		passwordHasher: defaultPasswordHasher{},
 	}
@@ -38,13 +40,16 @@ func (a *AuthService) WithSecurityAdapters(tp TokenProvider, ph PasswordHasher) 
 
 func (a *AuthService) Login(loginData *dto.LoginRequest) (string, *errors.AppError) {
 	// Defensive: permitir construção manual do struct em testes legados
+	if a.UserRepo == nil && a.Database != nil { // fallback para testes antigos
+		a.UserRepo = NewUserRepositoryAdapter(a.Database)
+	}
 	if a.tokenProvider == nil {
 		a.tokenProvider = defaultTokenProvider{}
 	}
 	if a.passwordHasher == nil {
 		a.passwordHasher = defaultPasswordHasher{}
 	}
-	findUserInfo, err := a.Database.FindUserByField("email", loginData.Email)
+	findUserInfo, err := a.UserRepo.FindByEmail(context.Background(), loginData.Email)
 	if err != nil && !strings.EqualFold(err.Error(), "record not found") {
 		return "", errors.NewDatabaseError("error finding user by email", nil)
 	}

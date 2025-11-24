@@ -22,7 +22,8 @@ type BalanceRequest struct {
 type WithdrawRequest struct {
 	Amount       string `json:"amount" validate:"required,numeric,gt=0"`
 	CallbackURL  string `json:"callback_url" validate:"omitempty,url"`
-	WithdrawType string `json:"withdraw_type" validate:"omitempty,oneof=internal tron"`
+	WithdrawType string `json:"withdraw_type" validate:"omitempty,oneof=internal tron ethereum"`
+	Chain        string `json:"chain" validate:"omitempty,oneof=tron ethereum"` // alternativa explícita quando withdraw_type='tron' ou 'ethereum'
 }
 
 type TransferRequest struct {
@@ -40,6 +41,11 @@ type TronRequest struct {
 // CreateTronWalletRequest para criar nova carteira
 type CreateTronWalletRequest struct {
 	// Vazio - gerado automaticamente
+}
+
+// GenerateWalletRequest para gerar wallet multi-chain
+type GenerateWalletRequest struct {
+	Chain string `json:"chain" validate:"required,oneof=tron ethereum"`
 }
 
 // SendTronRequest para enviar TRON

@@ -31,16 +31,19 @@ type Balance struct {
 }
 
 type Transaction struct {
-	User         User            `gorm:"foreignKey:AccountID;references:ID"`
-	CreatedAt    time.Time       `gorm:"autoCreateTime"`
-	TronTxHash   *string         `gorm:"type:text;nullable"`
-	TronTxStatus *string         `gorm:"type:text;default:null"`
-	Type         string          `gorm:"type:text;check:type IN ('deposit','withdraw','transfer')"`
-	Category     string          `gorm:"type:text"`
-	Description  string          `gorm:"type:text"`
-	Amount       decimal.Decimal `gorm:"type:numeric(10,2)"`
-	ID           uuid.UUID       `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	AccountID    uuid.UUID       `gorm:"type:uuid;not null"`
+	User            User            `gorm:"foreignKey:AccountID;references:ID"`
+	CreatedAt       time.Time       `gorm:"autoCreateTime"`
+	TronTxHash      *string         `gorm:"type:text;nullable"`
+	TronTxStatus    *string         `gorm:"type:text;default:null"`
+	OnChainTxHash   *string         `gorm:"column:onchain_tx_hash;type:text;default:null"`
+	OnChainTxStatus *string         `gorm:"column:onchain_tx_status;type:text;default:null"`
+	OnChainChain    *string         `gorm:"column:onchain_chain;type:text;default:null"`
+	Type            string          `gorm:"type:text;check:type IN ('deposit','withdraw','transfer')"`
+	Category        string          `gorm:"type:text"`
+	Description     string          `gorm:"type:text"`
+	Amount          decimal.Decimal `gorm:"type:numeric(10,2)"`
+	ID              uuid.UUID       `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	AccountID       uuid.UUID       `gorm:"type:uuid;not null"`
 }
 
 type AuditLog struct {
