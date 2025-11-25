@@ -1,68 +1,88 @@
 package services
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"os"
 	"testing"
 )
 
-func TestAESEncryptionProviderRoundTrip(t *testing.T) {
-	// 32 bytes master key base64
-	master := make([]byte, 32)
-	for i := range master {
-		master[i] = byte(i + 1)
-	}
-	os.Setenv("ENCRYPTION_MASTER_KEY", encodeBase64(master))
-	prov, err := NewAESEncryptionProviderFromEnv()
+// helper to generate a 32-byte random key and set env
+func setMasterKey(t *testing.T) []byte {
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
 	if err != nil {
-		t.Fatalf("erro criando provider: %v", err)
+		t.Fatalf("rand error: %v", err)
 	}
-	aesProv, ok := prov.(*AESEncryptionProvider)
-	if !ok {
-		t.Fatalf("esperava AESEncryptionProvider, obtido %T", prov)
-	}
-	plain := "segredo-teste-123"
-	enc, err := aesProv.Encrypt(plain)
+	os.Setenv("ENCRYPTION_MASTER_KEY", base64.StdEncoding.EncodeToString(key))
+	return key
+}
+
+func TestAESEncryptionProvider_EncryptDecrypt_RoundTrip(t *testing.T) {
+	setMasterKey(t)
+	p, err := NewAESEncryptionProviderFromEnv()
 	if err != nil {
-		t.Fatalf("erro encrypt: %v", err)
+		t.Fatalf("provider init failed: %v", err)
+	}
+	plain := "super-secret-data"
+	enc, err := p.Encrypt(plain)
+	if err != nil {
+		t.Fatalf("encrypt failed: %v", err)
 	}
 	if enc == plain {
-		t.Fatalf("ciphertext igual ao plaintext")
+		t.Fatalf("expected ciphertext different from plain text")
 	}
-	dec, err := aesProv.Decrypt(enc)
+	dec, err := p.Decrypt(enc)
 	if err != nil {
-		t.Fatalf("erro decrypt: %v", err)
+		t.Fatalf("decrypt failed: %v", err)
 	}
 	if dec != plain {
-		t.Fatalf("mismatch esperado %s got %s", plain, dec)
+		t.Fatalf("round trip mismatch: got %s", dec)
 	}
 }
 
-// encodeBase64 evita importar encoding/base64 no teste para manter escopo simples.
-// (Na prática poderíamos usar diretamente base64.StdEncoding)
-func encodeBase64(b []byte) string {
-	const table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	out := make([]byte, 0, ((len(b)+2)/3)*4)
-	for i := 0; i < len(b); i += 3 {
-		var c0, c1, c2 byte
-		c0 = b[i]
-		if i+1 < len(b) {
-			c1 = b[i+1]
-		}
-		if i+2 < len(b) {
-			c2 = b[i+2]
-		}
-		out = append(out, table[c0>>2])
-		out = append(out, table[((c0&0x03)<<4)|(c1>>4)])
-		if i+1 < len(b) {
-			out = append(out, table[((c1&0x0F)<<2)|(c2>>6)])
-		} else {
-			out = append(out, '=')
-		}
-		if i+2 < len(b) {
-			out = append(out, table[c2&0x3F])
-		} else {
-			out = append(out, '=')
-		}
+func TestAESEncryptionProvider_Decrypt_InvalidBase64(t *testing.T) {
+	setMasterKey(t)
+	p, err := NewAESEncryptionProviderFromEnv()
+	if err != nil {
+		t.Fatalf("provider init failed: %v", err)
 	}
-	return string(out)
+	if _, err := p.Decrypt("!!!invalid!!!"); err == nil {
+		t.Fatalf("expected error for invalid base64")
+	}
+}
+
+func TestAESEncryptionProvider_Decrypt_ShortCiphertext(t *testing.T) {
+	setMasterKey(t)
+	p, err := NewAESEncryptionProviderFromEnv()
+	if err != nil {
+		t.Fatalf("provider init failed: %v", err)
+	}
+	// Nonce size for AES-GCM is typically 12; use shorter to trigger error
+	if _, err := p.Decrypt(base64.StdEncoding.EncodeToString([]byte("short"))); err == nil {
+		t.Fatalf("expected error for short ciphertext")
+	}
+}
+
+func TestAESEncryptionProvider_NoMasterKeyReturnsNoop(t *testing.T) {
+	os.Unsetenv("ENCRYPTION_MASTER_KEY")
+	p, err := NewAESEncryptionProviderFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	plain := "data"
+	enc, err := p.Encrypt(plain)
+	if err != nil {
+		t.Fatalf("encrypt error: %v", err)
+	}
+	if enc != plain {
+		t.Fatalf("expected noop encryption")
+	}
+	dec, err := p.Decrypt(enc)
+	if err != nil {
+		t.Fatalf("decrypt error: %v", err)
+	}
+	if dec != plain {
+		t.Fatalf("expected noop decryption")
+	}
 }

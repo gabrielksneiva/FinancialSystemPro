@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -10,37 +11,33 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDatabase(dsn string) *gorm.DB {
+// Testability hooks
+var (
+	gormOpen func(gorm.Dialector, ...gorm.Option) (*gorm.DB, error) = gorm.Open
+	sleepFn                                                         = time.Sleep
+)
+
+// ConnectDatabase tenta conectar com retries e retorna erro em vez de finalizar o processo.
+func ConnectDatabase(dsn string) (*gorm.DB, error) {
+	return connectDatabaseWithRetry(dsn, 5, 2*time.Second)
+}
+
+// connectDatabaseWithRetry parametriza retries para facilitar testes.
+func connectDatabaseWithRetry(dsn string, maxRetries int, initialDelay time.Duration) (*gorm.DB, error) {
 	var err error
-	maxRetries := 5
-	var retryDelay time.Duration = 2 * time.Second
-
+	retryDelay := initialDelay
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		DB, err = gormOpen(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
-			break
+			log.Println("successfully connected to database")
+			return DB, nil
 		}
-
 		log.Printf("attempt %d/%d failed to connect to database: %v", attempt, maxRetries, err)
-
 		if attempt < maxRetries {
 			log.Printf("retrying in %v (serverless database may be waking up)...", retryDelay)
-			time.Sleep(retryDelay)
-			retryDelay *= 2 // exponential backoff
+			sleepFn(retryDelay)
+			retryDelay *= 2
 		}
 	}
-
-	if err != nil {
-		log.Fatalf("failed to connect to database after %d attempts: %v", maxRetries, err)
-	}
-
-	log.Println("successfully connected to database")
-
-	// AutoMigrate desabilitado - usamos migrations SQL manuais
-	// err = DB.AutoMigrate(&User{}, &Account{}, &Balance{}, &Transaction{}, &AuditLog{})
-	// if err != nil {
-	// 	log.Fatalf("failed to migrate database: %v", err)
-	// }
-
-	return DB
+	return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
 }

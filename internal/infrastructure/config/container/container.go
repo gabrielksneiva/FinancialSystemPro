@@ -108,11 +108,10 @@ func ProvideDatabaseConnection(cfg Config) (*repositories.NewDatabase, error) {
 		return nil, nil
 	}
 
-	db := repositories.ConnectDatabase(cfg.DatabaseURL)
-	if db == nil {
-		return nil, fmt.Errorf("failed to connect to database")
+	db, err := repositories.ConnectDatabase(cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-
 	return &repositories.NewDatabase{DB: db}, nil
 }
 
@@ -159,13 +158,21 @@ func ProvideTransactionService(
 func ProvideEthereumService() *services.EthereumService { return services.NewEthereumService() }
 
 // ProvideBlockchainRegistry cria registro multi-chain com Tron + Ethereum
-func ProvideBlockchainRegistry(tronSvc *services.TronService, ethSvc *services.EthereumService) *services.BlockchainRegistry {
+
+// ProvideBitcoinService cria serviço Bitcoin simples
+func ProvideBitcoinService() *services.BitcoinService { return services.NewBitcoinService() }
+
+// ProvideBlockchainRegistry cria registro multi-chain com Tron + Ethereum + (opcional) Bitcoin
+func ProvideBlockchainRegistry(tronSvc *services.TronService, ethSvc *services.EthereumService, btcSvc *services.BitcoinService) *services.BlockchainRegistry {
 	reg := services.NewBlockchainRegistry()
 	if tronSvc != nil {
 		reg.Register(tronSvc)
 	}
 	if ethSvc != nil {
 		reg.Register(ethSvc)
+	}
+	if btcSvc != nil {
+		reg.Register(btcSvc)
 	}
 	return reg
 }

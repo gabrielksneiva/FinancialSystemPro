@@ -1,12 +1,59 @@
 package integration
 
 import (
+	"net/http/httptest"
+	"os"
 	"testing"
 
 	httpAdapter "financial-system-pro/internal/adapters/http"
+	"financial-system-pro/internal/shared/utils"
 
+	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
+
+func buildRateLimiterApp() *fiber.App {
+	os.Setenv("SECRET_KEY", "ratelimitersecret")
+	os.Setenv("EXPIRATION_TIME", "3600")
+	logger := zap.NewNop()
+	rl := httpAdapter.NewRateLimiter(logger)
+	app := fiber.New()
+	app.Post("/api/v1/test-transfer", httpAdapter.VerifyJWTMiddleware(), rl.Middleware("transfer"), func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
+	})
+	return app
+}
+
+func TestRateLimiter_TransferLimit(t *testing.T) {
+	app := buildRateLimiterApp()
+	// Generate a valid token
+	token, err := utils.CreateJWTToken(map[string]interface{}{"ID": "user-ratelimit"})
+	if err != nil {
+		t.Fatalf("failed to create token: %v", err)
+	}
+
+	allowed := 0
+	blocked := 0
+	// Limit for transfer is 10 per minute; send 12 requests
+	for i := 0; i < 12; i++ {
+		req := httptest.NewRequest(fiber.MethodPost, "/api/v1/test-transfer", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, _ := app.Test(req, -1)
+		if resp.StatusCode == fiber.StatusOK {
+			allowed++
+		} else if resp.StatusCode == fiber.StatusTooManyRequests {
+			blocked++
+		} else {
+			t.Fatalf("unexpected status %d", resp.StatusCode)
+		}
+	}
+	if allowed != 10 {
+		t.Fatalf("expected 10 allowed requests got %d", allowed)
+	}
+	if blocked != 2 {
+		t.Fatalf("expected 2 blocked requests got %d", blocked)
+	}
+}
 
 func TestRateLimiterMiddleware(t *testing.T) {
 	logger, _ := zap.NewDevelopment()

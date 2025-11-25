@@ -11,6 +11,15 @@ import (
 	repo "financial-system-pro/internal/infrastructure/database"
 )
 
+// safeIP retorna o IP do contexto Fiber sem causar panic se RequestCtx incompleto
+func safeIP(ctx *fiber.Ctx) string {
+	if ctx == nil {
+		return ""
+	}
+	defer func() { _ = recover() }()
+	return ctx.IP()
+}
+
 // AuditLogHelper fornece funções auxiliares para logging de auditoria
 type AuditLogHelper struct {
 	logger *zap.Logger
@@ -30,12 +39,13 @@ func (a *AuditLogHelper) LogLoginAttempt(userID uuid.UUID, email string, success
 		action = "LOGIN_SUCCESS"
 	}
 
+	ip := safeIP(ctx)
 	auditLog := &repo.AuditLog{
 		UserID:     userID,
 		Action:     action,
 		OldPayload: datatypes.JSON(`{}`),
 		NewPayload: datatypes.JSON(fmt.Sprintf(`{"email":"%s"}`, email)),
-		IP:         ctx.IP(),
+		IP:         ip,
 	}
 
 	err := repo.LogAudit(auditLog)
@@ -51,12 +61,13 @@ func (a *AuditLogHelper) LogDeposit(userID uuid.UUID, amount string, success boo
 		action = "DEPOSIT_SUCCESS"
 	}
 
+	ip := safeIP(ctx)
 	auditLog := &repo.AuditLog{
 		UserID:     userID,
 		Action:     action,
 		OldPayload: datatypes.JSON(`{}`),
 		NewPayload: datatypes.JSON(fmt.Sprintf(`{"amount":"%s"}`, amount)),
-		IP:         ctx.IP(),
+		IP:         ip,
 	}
 
 	err := repo.LogAudit(auditLog)
@@ -72,12 +83,13 @@ func (a *AuditLogHelper) LogWithdraw(userID uuid.UUID, amount string, success bo
 		action = "WITHDRAW_SUCCESS"
 	}
 
+	ip := safeIP(ctx)
 	auditLog := &repo.AuditLog{
 		UserID:     userID,
 		Action:     action,
 		OldPayload: datatypes.JSON(`{}`),
 		NewPayload: datatypes.JSON(fmt.Sprintf(`{"amount":"%s"}`, amount)),
-		IP:         ctx.IP(),
+		IP:         ip,
 	}
 
 	err := repo.LogAudit(auditLog)
@@ -93,12 +105,13 @@ func (a *AuditLogHelper) LogTransfer(userID uuid.UUID, receiverID string, amount
 		action = "TRANSFER_SUCCESS"
 	}
 
+	ip := safeIP(ctx)
 	auditLog := &repo.AuditLog{
 		UserID:     userID,
 		Action:     action,
 		OldPayload: datatypes.JSON(`{}`),
 		NewPayload: datatypes.JSON(fmt.Sprintf(`{"receiver_id":"%s","amount":"%s"}`, receiverID, amount)),
-		IP:         ctx.IP(),
+		IP:         ip,
 	}
 
 	err := repo.LogAudit(auditLog)
@@ -114,12 +127,13 @@ func (a *AuditLogHelper) LogTronTransaction(userID uuid.UUID, txType, toAddress,
 		action = fmt.Sprintf("TRON_%s_SUCCESS", txType)
 	}
 
+	ip := safeIP(ctx)
 	auditLog := &repo.AuditLog{
 		UserID:     userID,
 		Action:     action,
 		OldPayload: datatypes.JSON(`{}`),
 		NewPayload: datatypes.JSON(fmt.Sprintf(`{"to_address":"%s","amount":"%s"}`, toAddress, amount)),
-		IP:         ctx.IP(),
+		IP:         ip,
 	}
 
 	err := repo.LogAudit(auditLog)
@@ -135,12 +149,13 @@ func (a *AuditLogHelper) LogUserCreation(userID uuid.UUID, email string, success
 		action = "USER_CREATION_SUCCESS"
 	}
 
+	ip := safeIP(ctx)
 	auditLog := &repo.AuditLog{
 		UserID:     userID,
 		Action:     action,
 		OldPayload: datatypes.JSON(`{}`),
 		NewPayload: datatypes.JSON(fmt.Sprintf(`{"email":"%s"}`, email)),
-		IP:         ctx.IP(),
+		IP:         ip,
 	}
 
 	err := repo.LogAudit(auditLog)

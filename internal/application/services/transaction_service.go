@@ -188,7 +188,88 @@ func (t *TransactionService) WithdrawOnChain(userID string, chain entities.Block
 		return nil, errors.NewValidationError("user_id", "Invalid user ID format")
 	}
 
-	// Branch Ethereum (implementação inicial)
+	// Branch Bitcoin
+	if chain == entities.BlockchainBitcoin {
+		if t.ChainRegistry == nil {
+			return nil, fmt.Errorf("chain registry não configurado")
+		}
+		if t.OnChainRepo == nil {
+			return nil, fmt.Errorf("on-chain wallet repository não configurado")
+		}
+		wallet, wErr := t.OnChainRepo.FindByUserAndChain(context.Background(), uid, entities.BlockchainBitcoin)
+		if wErr != nil {
+			return nil, fmt.Errorf("Bitcoin wallet não encontrada para usuário. Gere a wallet primeiro")
+		}
+		gw, gwErr := t.ChainRegistry.Get(entities.BlockchainBitcoin)
+		if gwErr != nil {
+			return nil, fmt.Errorf("Bitcoin gateway não disponível: %w", gwErr)
+		}
+		vaultAddress := os.Getenv("BTC_VAULT_ADDRESS")
+		vaultPrivKey := os.Getenv("BTC_VAULT_PRIVATE_KEY")
+		if vaultAddress == "" || vaultPrivKey == "" {
+			return nil, fmt.Errorf("Bitcoin vault não configurado (BTC_VAULT_ADDRESS / BTC_VAULT_PRIVATE_KEY)")
+		}
+		if !gw.ValidateAddress(vaultAddress) || !gw.ValidateAddress(wallet.Address) {
+			return nil, fmt.Errorf("endereço inválido (vault ou destino)")
+		}
+		// converter amount usando helper genérico (satoshis)
+		amountInSats, convErr := ConvertAmountToBaseUnit(entities.BlockchainBitcoin, amount)
+		if convErr != nil {
+			return nil, convErr
+		}
+		if t.Ledger == nil && t.DB != nil {
+			t.Ledger = NewLedgerAdapter(t.DB)
+		}
+		if t.TxRepo == nil && t.DB != nil {
+			t.TxRepo = NewTransactionRecordAdapter(t.DB)
+		}
+		txRecord := &r.Transaction{AccountID: uid, Amount: amount, Type: "withdraw", Category: "debit", Description: fmt.Sprintf("BTC withdraw to %s", wallet.Address), OnChainTxStatus: stringPtr("pending"), OnChainChain: stringPtr("bitcoin")}
+		if err = t.TxRepo.Insert(context.Background(), txRecord); err != nil {
+			return nil, err
+		}
+		// webhook pending
+		if callbackURL != "" {
+			t.sendWebhook(callbackURL, "bitcoin", map[string]interface{}{"status": "pending", "tx_id": txRecord.ID.String(), "user_id": uid.String(), "amount": amount.String(), "to_address": wallet.Address, "timestamp": time.Now().Unix(), "description": "Withdraw request received and queued"})
+		}
+		if err = t.Ledger.Apply(context.Background(), uid, amount, "withdraw"); err != nil {
+			_ = t.TxRepo.Update(context.Background(), txRecord.ID, map[string]interface{}{"onchain_tx_status": "failed"})
+			if callbackURL != "" {
+				t.sendWebhook(callbackURL, "bitcoin", map[string]interface{}{"status": "failed", "tx_id": txRecord.ID.String(), "user_id": uid.String(), "amount": amount.String(), "to_address": wallet.Address, "timestamp": time.Now().Unix(), "error": err.Error(), "description": "Ledger apply failed"})
+			}
+			return nil, err
+		}
+		_ = t.TxRepo.Update(context.Background(), txRecord.ID, map[string]interface{}{"onchain_tx_status": "broadcasting"})
+		if callbackURL != "" {
+			t.sendWebhook(callbackURL, "bitcoin", map[string]interface{}{"status": "broadcasting", "tx_id": txRecord.ID.String(), "user_id": uid.String(), "amount": amount.String(), "to_address": wallet.Address, "timestamp": time.Now().Unix(), "description": "Broadcasting transaction to Bitcoin network"})
+		}
+		btcHash, bErr := gw.Broadcast(context.Background(), vaultAddress, wallet.Address, amountInSats, vaultPrivKey)
+		if bErr != nil {
+			_ = t.TxRepo.Update(context.Background(), txRecord.ID, map[string]interface{}{"onchain_tx_status": "failed"})
+			if callbackURL != "" {
+				t.sendWebhook(callbackURL, "bitcoin", map[string]interface{}{"status": "failed", "tx_id": txRecord.ID.String(), "user_id": uid.String(), "amount": amount.String(), "to_address": wallet.Address, "timestamp": time.Now().Unix(), "error": bErr.Error(), "description": "Transaction broadcast failed"})
+			}
+			return nil, fmt.Errorf("falha broadcast Bitcoin: %w", bErr)
+		}
+		_ = t.TxRepo.Update(context.Background(), txRecord.ID, map[string]interface{}{"onchain_tx_hash": string(btcHash), "onchain_tx_status": "broadcast_success"})
+		if callbackURL != "" {
+			t.sendWebhook(callbackURL, "bitcoin", map[string]interface{}{"status": "broadcast_success", "tx_id": txRecord.ID.String(), "tx_hash": string(btcHash), "user_id": uid.String(), "amount": amount.String(), "to_address": wallet.Address, "from_address": vaultAddress, "timestamp": time.Now().Unix(), "description": "Transaction successfully broadcast to Bitcoin network", "explorer_url": fmt.Sprintf("https://mempool.space/tx/%s", btcHash)})
+			// iniciar confirmação assíncrona simples
+			go func(txID uuid.UUID, hash string, cb string, user uuid.UUID, amt decimal.Decimal, to string) {
+				// confirming
+				_ = t.TxRepo.Update(context.Background(), txID, map[string]interface{}{"onchain_tx_status": "confirming"})
+				t.sendWebhook(cb, "bitcoin", map[string]interface{}{"status": "confirming", "tx_id": txID.String(), "tx_hash": hash, "user_id": user.String(), "amount": amt.String(), "to_address": to, "timestamp": time.Now().Unix(), "confirmations": 0, "description": "Waiting for confirmations on Bitcoin network", "explorer_url": fmt.Sprintf("https://mempool.space/tx/%s", hash)})
+				time.Sleep(3 * time.Second)
+				_ = t.TxRepo.Update(context.Background(), txID, map[string]interface{}{"onchain_tx_status": "confirmed"})
+				t.sendWebhook(cb, "bitcoin", map[string]interface{}{"status": "confirmed", "tx_id": txID.String(), "tx_hash": hash, "user_id": user.String(), "amount": amt.String(), "to_address": to, "timestamp": time.Now().Unix(), "confirmations": 1, "description": "Transaction confirmed on Bitcoin network", "explorer_url": fmt.Sprintf("https://mempool.space/tx/%s", hash)})
+				time.Sleep(2 * time.Second)
+				_ = t.TxRepo.Update(context.Background(), txID, map[string]interface{}{"onchain_tx_status": "completed"})
+				t.sendWebhook(cb, "bitcoin", map[string]interface{}{"status": "completed", "tx_id": txID.String(), "tx_hash": hash, "user_id": user.String(), "amount": amt.String(), "to_address": to, "timestamp": time.Now().Unix(), "confirmations": 3, "description": "Transaction fully completed with multiple confirmations", "explorer_url": fmt.Sprintf("https://mempool.space/tx/%s", hash)})
+			}(txRecord.ID, string(btcHash), callbackURL, uid, amount, wallet.Address)
+		}
+		return &ServiceResponse{StatusCode: 202, Body: map[string]interface{}{"message": "Withdrawal broadcast to Bitcoin blockchain", "tx_id": txRecord.ID.String(), "tx_hash": string(btcHash), "amount": amount.String(), "to_address": wallet.Address, "from_address": vaultAddress, "status": "broadcast_success", "explorer_url": fmt.Sprintf("https://mempool.space/tx/%s", btcHash), "onchain_chain": "bitcoin"}}, nil
+	}
+
+	// Branch Ethereum
 	if chain == entities.BlockchainEthereum {
 		if t.ChainRegistry == nil {
 			return nil, fmt.Errorf("chain registry não configurado")
@@ -212,12 +293,11 @@ func (t *TransactionService) WithdrawOnChain(userID string, chain entities.Block
 		if !gw.ValidateAddress(vaultAddress) || !gw.ValidateAddress(wallet.Address) {
 			return nil, fmt.Errorf("endereço inválido (vault ou destino)")
 		}
-		// converter amount (ETH decimal) para wei (18 casas)
-		weiBig := amount.Mul(decimal.NewFromInt(1_000_000_000_000_000_000)).BigInt()
-		if weiBig.BitLen() > 63 { // garante fit em int64 para interface atual
-			return nil, fmt.Errorf("valor muito grande para conversão em wei")
+		// converter amount usando helper genérico (wei)
+		amountInWei, convErr := ConvertAmountToBaseUnit(entities.BlockchainEthereum, amount)
+		if convErr != nil {
+			return nil, convErr
 		}
-		amountInWei := weiBig.Int64()
 		if t.Ledger == nil && t.DB != nil {
 			t.Ledger = NewLedgerAdapter(t.DB)
 		}
@@ -259,8 +339,8 @@ func (t *TransactionService) WithdrawOnChain(userID string, chain entities.Block
 	}
 	vaultAddress := tronPort.GetVaultAddress()
 	vaultPrivateKey := tronPort.GetVaultPrivateKey()
-	// Conversão TRON: 1 TRX = 1e6 SUN
-	amountInSun := amount.Mul(decimal.NewFromInt(1000000)).BigInt().Int64()
+	// Conversão TRON via helper genérico (SUN)
+	amountInSun, _ := ConvertAmountToBaseUnit(entities.BlockchainTRON, amount)
 	if t.Ledger == nil && t.DB != nil {
 		t.Ledger = NewLedgerAdapter(t.DB)
 	}

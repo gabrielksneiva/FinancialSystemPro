@@ -58,6 +58,35 @@ test-coverage: ## Roda testes com cobertura
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -func=coverage.out | tail -n 1
 
+# Pacotes a excluir da cobertura agregada (gerados ou sem lógica testável)
+EXCLUDE_COVERAGE_PATTERNS=/docs /test/mocks /cmd/server
+
+coverage: coverage-simple ## Alias para cobertura simples
+
+coverage-simple: ## Cobertura agregada usando -coverpkg para instrumentar todos os pacotes incluídos
+	@echo "🔍 Cobertura simples agregada (excluindo: $(EXCLUDE_COVERAGE_PATTERNS))"
+	@PKGS=$$(go list ./... | grep -v '/docs' | grep -v '/test/mocks' | grep -v '/cmd/server'); \
+	  echo "Pacotes incluídos:"; echo $$PKGS | tr ' ' '\n'; \
+	  go test -coverpkg=$$PKGS -coverprofile=coverage.out $$PKGS >/dev/null; \
+	  go tool cover -func=coverage.out | grep total | sed 's/^/Total (simple aggregated): /'
+
+coverage-holistic: ## Cobertura holística (mesma que simples agregada para consistência)
+	@echo "🧪 Cobertura holística agregada (excluindo: $(EXCLUDE_COVERAGE_PATTERNS))"
+	@PKGS=$$(go list ./... | grep -v '/docs' | grep -v '/test/mocks' | grep -v '/cmd/server'); \
+	  echo "Pacotes incluídos:"; echo $$PKGS | tr ' ' '\n'; \
+	  go test -coverpkg=$$PKGS -coverprofile=coverage.out $$PKGS >/dev/null; \
+	  go tool cover -func=coverage.out | grep total | sed 's/^/Total (holistic aggregated): /'
+
+coverage-html: coverage-simple ## Gera relatório HTML de cobertura filtrada
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "📄 Relatório em coverage.html"
+
+COVERAGE_THRESHOLD?=50
+coverage-check: coverage-simple ## Falha se cobertura agregada < COVERAGE_THRESHOLD (default 50)
+	@TOTAL=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//'); \
+	  echo "Total simples agregada: $$TOTAL% (threshold: $(COVERAGE_THRESHOLD)%)"; \
+	  awk "BEGIN {exit !($$TOTAL >= $(COVERAGE_THRESHOLD))}" || (echo "❌ Cobertura abaixo do threshold"; exit 1)
+
 test-wallet: ## Testa geração de carteira TRON
 	go test -v ./services -run TestGenerateTronAddress
 

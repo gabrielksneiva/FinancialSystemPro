@@ -1,75 +1,77 @@
-//go:build service_tests_disabled
-
-package services_test
+package services
 
 import (
-	"financial-system-pro/internal/application/dto"
-	"financial-system-pro/internal/application/services"
-	"financial-system-pro/internal/domain/errors"
-	repositories "financial-system-pro/internal/infrastructure/database"
+	"context"
+	"errors"
+	"fmt"
 	"testing"
 
-	"github.com/golang-jwt/jwt"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
+	"financial-system-pro/internal/application/dto"
+	domainErrors "financial-system-pro/internal/domain/errors"
+	repositories "financial-system-pro/internal/infrastructure/database"
+
+	"github.com/google/uuid"
 )
 
-type mockAuthDB struct{ users map[string]*repositories.User }
+// Additional edge-case tests for AuthService covering branches not exercised by auth_service_ports_test.go.
 
-func newMockAuthDB() *mockAuthDB { return &mockAuthDB{users: map[string]*repositories.User{}} }
+// internalErrorPasswordHasher returns (true, error) to trigger internal error branch after password validation.
+type internalErrorPasswordHasher struct{}
 
-func (m *mockAuthDB) FindUserByField(field, value string) (*repositories.User, error) {
-	if field == "email" {
-		u := m.users[value]
-		if u == nil {
-			return nil, errors.NewDatabaseError("record not found", nil)
-		}
-		return u, nil
+func (internalErrorPasswordHasher) Compare(raw, hashed string) (bool, error) {
+	return true, errors.New("compare failure")
+}
+func (internalErrorPasswordHasher) Hash(raw string) (string, error) { return "", errors.New("unused") }
+
+// dbErrorUserRepo forces a database error (not 'record not found').
+type dbErrorUserRepo struct{}
+
+func (dbErrorUserRepo) FindByEmail(_ context.Context, email string) (*repositories.User, error) {
+	return nil, fmt.Errorf("connection lost")
+}
+func (dbErrorUserRepo) FindByID(_ context.Context, id uuid.UUID) (*repositories.User, error) {
+	return nil, fmt.Errorf("no impl")
+}
+func (dbErrorUserRepo) Save(_ context.Context, user *repositories.User) error { return nil }
+
+// successUserRepo returns a deterministic user.
+type successUserRepo struct{ u *repositories.User }
+
+func (s successUserRepo) FindByEmail(_ context.Context, email string) (*repositories.User, error) {
+	return s.u, nil
+}
+func (s successUserRepo) FindByID(_ context.Context, id uuid.UUID) (*repositories.User, error) {
+	return s.u, nil
+}
+func (s successUserRepo) Save(_ context.Context, user *repositories.User) error { return nil }
+
+// noopTokenProvider returns static token.
+type noopTokenProvider struct{}
+
+func (noopTokenProvider) CreateToken(claims map[string]interface{}) (string, error) {
+	return "TOK", nil
+}
+
+func TestAuthService_Login_InternalPasswordErrorBranch(t *testing.T) {
+	// Reuse user from existing ports tests; password value irrelevant (Compare returns true)
+	user := &repositories.User{Email: "u@example.com", Password: "hash"}
+	svc := &AuthService{UserRepo: successUserRepo{u: user}, tokenProvider: noopTokenProvider{}, passwordHasher: internalErrorPasswordHasher{}}
+	token, appErr := svc.Login(&dto.LoginRequest{Email: "u@example.com", Password: "pw"})
+	if appErr == nil || appErr.Code != domainErrors.ErrInternal {
+		t.Fatalf("expected internal error, got %+v", appErr)
 	}
-	return nil, errors.NewDatabaseError("unsupported field", nil)
-}
-func (m *mockAuthDB) Insert(model interface{}) error                         { return nil }
-func (m *mockAuthDB) SaveWalletInfo(repositories.UUID, string, string) error { return nil }
-func (m *mockAuthDB) GetWalletInfo(repositories.UUID) (*repositories.WalletInfo, error) {
-	return nil, nil
-}
-func (m *mockAuthDB) Transaction(repositories.UUID, interface{}, string) error          { return nil }
-func (m *mockAuthDB) Balance(repositories.UUID) (interface{}, error)                    { return nil, nil }
-func (m *mockAuthDB) UpdateTransaction(repositories.UUID, map[string]interface{}) error { return nil }
-
-func TestLogin_Success(t *testing.T) {
-	mdb := newMockAuthDB()
-	// password hashing usando utils.HashAString será chamado internamente; precisamos do hash resultante
-	// Para simplificar, assumimos que password já está hashed igual à função HashAString("secret")
-	// Em ambiente real, seria melhor isolar utils, aqui é aproximação.
-	// Gerar hash real
-	hash, _ := services.HashAString("secret")
-	mdb.users["u@example.com"] = &repositories.User{Email: "u@example.com", Password: hash}
-
-	service := &services.AuthService{Database: (*repositories.NewDatabase)(mdb), Logger: zap.NewNop()}
-	token, appErr := service.Login(&dto.LoginRequest{Email: "u@example.com", Password: "secret"})
-	assert.Nil(t, appErr)
-	assert.NotEmpty(t, token)
-	parsed, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) { return []byte(""), nil })
-	assert.NoError(t, err)
-	assert.NotNil(t, parsed)
+	if token != "" {
+		t.Fatalf("expected empty token on internal error")
+	}
 }
 
-func TestLogin_UserNotFound(t *testing.T) {
-	service := &services.AuthService{Database: (*repositories.NewDatabase)(newMockAuthDB()), Logger: zap.NewNop()}
-	token, appErr := service.Login(&dto.LoginRequest{Email: "missing@example.com", Password: "x"})
-	assert.Empty(t, token)
-	assert.NotNil(t, appErr)
-	assert.Equal(t, "validation_error", appErr.Type)
-}
-
-func TestLogin_InvalidPassword(t *testing.T) {
-	mdb := newMockAuthDB()
-	// Hash de senha diferente
-	hash, _ := services.HashAString("other")
-	mdb.users["u@example.com"] = &repositories.User{Email: "u@example.com", Password: hash}
-	service := &services.AuthService{Database: (*repositories.NewDatabase)(mdb), Logger: zap.NewNop()}
-	_, appErr := service.Login(&dto.LoginRequest{Email: "u@example.com", Password: "secret"})
-	assert.NotNil(t, appErr)
-	assert.Equal(t, "validation_error", appErr.Type)
+func TestAuthService_Login_DatabaseErrorBranch(t *testing.T) {
+	svc := &AuthService{UserRepo: dbErrorUserRepo{}, tokenProvider: noopTokenProvider{}, passwordHasher: internalErrorPasswordHasher{}}
+	token, appErr := svc.Login(&dto.LoginRequest{Email: "x@example.com", Password: "pw"})
+	if appErr == nil || appErr.Code != domainErrors.ErrDatabaseConnection {
+		t.Fatalf("expected database connection error, got %+v", appErr)
+	}
+	if token != "" {
+		t.Fatalf("expected empty token on db error")
+	}
 }

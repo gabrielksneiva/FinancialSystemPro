@@ -59,3 +59,25 @@ func TestReadinessProbe(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }
+
+func TestHealthCheckFull_Degraded(t *testing.T) {
+	logger := zap.NewNop()
+	// userService nil forces degraded + database down path
+	h := http.NewHandlerForTesting(
+		nil,
+		&services.AuthService{Logger: logger},
+		&services.TransactionService{Logger: logger},
+		&services.TronService{},
+		nil,
+		http.NewZapLoggerAdapter(logger),
+		http.NewRateLimiter(logger),
+		nil,
+	)
+	app := fiber.New()
+	app.Get("/health/full", h.HealthCheckFull)
+	req := httptest.NewRequest("GET", "/health/full", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	// Expect degraded -> 503
+	assert.Equal(t, fiber.StatusServiceUnavailable, resp.StatusCode)
+}

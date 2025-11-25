@@ -326,6 +326,8 @@ func (h *Handler) Withdraw(ctx *fiber.Ctx) error {
 			chainType = entities.BlockchainTRON
 		case "ethereum":
 			chainType = entities.BlockchainEthereum
+		case "bitcoin":
+			chainType = entities.BlockchainBitcoin
 		default:
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Unsupported chain"})
 		}
