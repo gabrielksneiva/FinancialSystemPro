@@ -22,8 +22,8 @@ type BalanceRequest struct {
 type WithdrawRequest struct {
 	Amount       string `json:"amount" validate:"required,numeric,gt=0"`
 	CallbackURL  string `json:"callback_url" validate:"omitempty,url"`
-	WithdrawType string `json:"withdraw_type" validate:"omitempty,oneof=internal tron ethereum"`
-	Chain        string `json:"chain" validate:"omitempty,oneof=tron ethereum"` // alternativa explícita quando withdraw_type='tron' ou 'ethereum'
+	WithdrawType string `json:"withdraw_type" validate:"omitempty,oneof=internal tron ethereum bitcoin"`
+	Chain        string `json:"chain" validate:"omitempty,oneof=tron ethereum bitcoin"` // alternativa explícita quando withdraw_type='tron' ou 'ethereum' ou 'bitcoin'
 }
 
 type TransferRequest struct {

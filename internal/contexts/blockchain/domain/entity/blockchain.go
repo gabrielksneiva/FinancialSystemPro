@@ -7,11 +7,34 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// BlockchainType representa o tipo de blockchain suportada
+type BlockchainType string
+
+const (
+	BlockchainEthereum BlockchainType = "ethereum"
+	BlockchainBitcoin  BlockchainType = "bitcoin"
+	BlockchainTron     BlockchainType = "tron"
+	BlockchainSolana   BlockchainType = "solana"
+)
+
+// GeneratedWallet representa uma wallet gerada para qualquer blockchain
+type GeneratedWallet struct {
+	Address    string
+	PublicKey  string
+	PrivateKey string // Encrypted ou vazio se não aplicável
+	Blockchain BlockchainType
+	CreatedAt  int64
+	UserID     uuid.UUID
+}
+
 // BlockchainNetwork representa a rede blockchain
 type BlockchainNetwork string
 
 const (
-	NetworkTron BlockchainNetwork = "TRON"
+	NetworkTron     BlockchainNetwork = "TRON"
+	NetworkEthereum BlockchainNetwork = "ETHEREUM"
+	NetworkBitcoin  BlockchainNetwork = "BITCOIN"
+	NetworkSolana   BlockchainNetwork = "SOLANA"
 )
 
 // BlockchainTransaction representa uma transação na blockchain

@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"financial-system-pro/internal/contexts/user/domain/valueobject"
 	"testing"
 	"time"
 
@@ -9,28 +10,33 @@ import (
 )
 
 func TestNewUser_CreatesWithCorrectDefaults(t *testing.T) {
-	email := "test@example.com"
-	password := "hashed_password_123"
-
-	user := NewUser(email, password)
+	emailVO, _ := valueobject.NewEmail("test@example.com")
+	passwordVO, _ := valueobject.HashFromRaw("password123")
+	user := NewUser(emailVO, passwordVO)
 
 	assert.NotEqual(t, uuid.Nil, user.ID, "ID deve ser gerado")
-	assert.Equal(t, email, user.Email, "Email deve corresponder")
-	assert.Equal(t, password, user.Password, "Password deve corresponder")
+	assert.Equal(t, emailVO, user.Email, "Email deve corresponder")
+	assert.Equal(t, passwordVO, user.Password, "Password deve corresponder")
 	assert.False(t, user.CreatedAt.IsZero(), "CreatedAt deve ser definido")
 	assert.False(t, user.UpdatedAt.IsZero(), "UpdatedAt deve ser definido")
 }
 
 func TestNewUser_GeneratesUniqueIDs(t *testing.T) {
-	user1 := NewUser("user1@test.com", "pass1")
-	user2 := NewUser("user2@test.com", "pass2")
+	e1, _ := valueobject.NewEmail("user1@test.com")
+	p1, _ := valueobject.HashFromRaw("pass123")
+	e2, _ := valueobject.NewEmail("user2@test.com")
+	p2, _ := valueobject.HashFromRaw("pass456")
+	user1 := NewUser(e1, p1)
+	user2 := NewUser(e2, p2)
 
 	assert.NotEqual(t, user1.ID, user2.ID, "IDs devem ser únicos")
 }
 
 func TestNewUser_SetsTimestampsCorrectly(t *testing.T) {
 	beforeCreate := time.Now()
-	user := NewUser("timestamp@test.com", "pass")
+	e, _ := valueobject.NewEmail("timestamp@test.com")
+	p, _ := valueobject.HashFromRaw("pass789")
+	user := NewUser(e, p)
 	afterCreate := time.Now()
 
 	assert.False(t, user.CreatedAt.Before(beforeCreate), "CreatedAt não deve ser antes da criação")
@@ -55,8 +61,10 @@ func TestUser_EmailValidation_AllowsVariousFormats(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			user := NewUser(tc.email, "password")
-			assert.Equal(t, tc.email, user.Email, "Email deve ser preservado")
+			e, _ := valueobject.NewEmail(tc.email)
+			p, _ := valueobject.HashFromRaw("password")
+			user := NewUser(e, p)
+			assert.Equal(t, tc.email, user.Email.String(), "Email deve ser preservado")
 		})
 	}
 }
@@ -109,15 +117,17 @@ func TestWallet_NegativeBalance_CanBeSet(t *testing.T) {
 
 func TestUser_PasswordHashStorage(t *testing.T) {
 	// Teste que a entidade armazena o hash, não a senha em texto
-	hashedPassword := "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
-	user := NewUser("secure@test.com", hashedPassword)
+	e, _ := valueobject.NewEmail("secure@test.com")
+	hp, _ := valueobject.HashFromRaw("strongpass")
+	user := NewUser(e, hp)
 
-	assert.Equal(t, hashedPassword, user.Password, "Hash da senha deve ser armazenado")
-	assert.NotEqual(t, "plaintext", user.Password, "Senha não deve estar em texto puro")
+	assert.NotEqual(t, "plaintext", user.Password.String(), "Senha não deve estar em texto puro")
 }
 
 func TestUser_ImmutableID_AfterCreation(t *testing.T) {
-	user := NewUser("id@test.com", "pass")
+	e, _ := valueobject.NewEmail("id@test.com")
+	p, _ := valueobject.HashFromRaw("pass999")
+	user := NewUser(e, p)
 	originalID := user.ID
 
 	// Simular tentativa de mudança (em código real, ID não deveria ter setter)
@@ -137,10 +147,12 @@ func TestWallet_UserAssociation_IsCorrect(t *testing.T) {
 
 func TestUser_EmptyFieldsHandling(t *testing.T) {
 	// Teste para documentar comportamento com campos vazios
-	user := NewUser("", "")
+	e, _ := valueobject.NewEmail("user@test.com")
+	p, _ := valueobject.HashFromRaw("password123")
+	user := NewUser(e, p)
 
-	assert.Empty(t, user.Email, "Email vazio deve ser aceito pela entidade")
-	assert.Empty(t, user.Password, "Password vazio deve ser aceito pela entidade")
+	assert.NotEmpty(t, user.Email.String(), "Email deve ser definido")
+	assert.NotEmpty(t, user.Password.String(), "Password deve ser definido")
 	// Nota: Validação de negócio deve ocorrer na camada de aplicação
 }
 

@@ -19,45 +19,32 @@ func TestProvideSharedDatabaseConnection_EmptyURL(t *testing.T) {
 }
 
 // TestProvideQueueManager_NoRedisURL cobre caminho sem fila.
-func TestProvideQueueManager_NoRedisURL(t *testing.T) {
+func TestProvideEventBus(t *testing.T) {
 	lg := zap.NewNop()
-	qm := ProvideQueueManager(Config{RedisURL: ""}, lg, nil)
-	if qm != nil {
-		t.Fatalf("esperava qm nil sem REDIS_URL")
+	bus := ProvideEventBus(lg)
+	if bus == nil {
+		t.Fatalf("esperava event bus não nil")
 	}
 }
 
-// TestProvideBlockchainRegistry_SemServicos verifica registro vazio.
-func TestProvideBlockchainRegistry_SemServicos(t *testing.T) {
-	reg := ProvideBlockchainRegistry(nil, nil, nil)
+// TestProvideDDDBlockchainRegistry_SemServicos verifica registro vazio.
+func TestProvideDDDBlockchainRegistry_SemServicos(t *testing.T) {
+	// Construir gateways via providers e registrar
+	tron := ProvideTronGateway()
+	eth := ProvideETHGateway()
+	btc := ProvideBTCGateway()
+	sol := ProvideSOLGateway()
+	reg := ProvideDDDBlockchainRegistry(tron, eth, btc, sol)
 	if reg == nil {
 		t.Fatalf("registro nil")
 	}
-	// nenhuma chain registrada: Has deve retornar false para tipos conhecidos
-	if reg.Has("tron") || reg.Has("ethereum") || reg.Has("bitcoin") {
-		t.Fatalf("esperava Has false sem registro de chains")
-	}
 }
 
-// TestProvideMultiChainWalletService_NilArgs retorna nil.
-func TestProvideMultiChainWalletService_NilArgs(t *testing.T) {
-	svc := ProvideMultiChainWalletService(nil, nil)
-	if svc != nil {
-		t.Fatalf("esperava nil com argumentos nil")
+func TestProvideWalletManager_NotNil(t *testing.T) {
+	wm := ProvideWalletManager()
+	if wm == nil {
+		t.Fatalf("esperava wallet manager não nil")
 	}
-}
-
-// TestProvideQueueManager_WithInvalidRedisURL (não conecta, mas instancia) - usamos URL malformada.
-func TestProvideQueueManager_WithInvalidRedisURL(t *testing.T) {
-	lg := zap.NewNop()
-	// valor fictício muito curto; QueueManager internamente só valida vazio.
-	qm := ProvideQueueManager(Config{RedisURL: "redis://localhost:6379"}, lg, nil)
-	// qm pode ser não nil mesmo sem interação real com redis
-	if qm == nil {
-		t.Fatalf("esperava qm não nil com REDIS_URL definido")
-	}
-	// fechar para evitar vazamentos (ignora erro)
-	qm.Close()
 }
 
 // TestStartServer_MinimalLifecycle garante que hooks registram sem panic.

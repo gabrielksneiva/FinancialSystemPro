@@ -26,11 +26,11 @@ func NewUserRepository() *UserRepository {
 func (r *UserRepository) Create(ctx context.Context, user *userEntity.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, exists := r.byEmail[user.Email]; exists {
+	if _, exists := r.byEmail[string(user.Email)]; exists {
 		return errors.NewValidationError("email", "email already registered")
 	}
 	r.users[user.ID] = user
-	r.byEmail[user.Email] = user
+	r.byEmail[string(user.Email)] = user
 	return nil
 }
 
@@ -61,8 +61,8 @@ func (r *UserRepository) Update(ctx context.Context, user *userEntity.User) erro
 		return errors.NewNotFoundError("user")
 	}
 	if old := r.users[user.ID]; old.Email != user.Email {
-		delete(r.byEmail, old.Email)
-		r.byEmail[user.Email] = user
+		delete(r.byEmail, string(old.Email))
+		r.byEmail[string(user.Email)] = user
 	}
 	r.users[user.ID] = user
 	return nil
@@ -75,7 +75,7 @@ func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if !exists {
 		return errors.NewNotFoundError("user")
 	}
-	delete(r.byEmail, user.Email)
+	delete(r.byEmail, string(user.Email))
 	delete(r.users, id)
 	return nil
 }

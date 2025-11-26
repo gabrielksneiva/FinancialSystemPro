@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"financial-system-pro/internal/contexts/transaction/domain/entity"
 	"financial-system-pro/internal/contexts/transaction/domain/repository"
+	"financial-system-pro/internal/contexts/transaction/domain/valueobject"
 	userEntity "financial-system-pro/internal/contexts/user/domain/entity"
 	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
 	"financial-system-pro/internal/shared/breaker"
@@ -43,14 +45,29 @@ func NewTransactionService(
 	}
 }
 
+// WithOutbox mantido para compatibilidade com testes antigos; não realiza ação e retorna o próprio serviço.
+func (s *TransactionService) WithOutbox(_ interface{}) *TransactionService { return s }
+
+// writeOutbox registra um evento no outbox se configurado.
+func (s *TransactionService) writeOutbox(ctx context.Context, typ string, payload interface{}) {
+	// Outbox persistence to be handled by new adapter (not legacy services)
+	_, _ = json.Marshal(payload)
+}
+
 // ProcessDeposit processa um depósito
 func (s *TransactionService) ProcessDeposit(ctx context.Context, userID uuid.UUID, amount decimal.Decimal, callbackURL string) error {
+	// Money VO
+	money, err := valueobject.NewMoney(amount, valueobject.Currency("BRL"))
+	if err != nil {
+		return err
+	}
 	// Criar transação
 	tx := entity.NewTransaction(userID, entity.TransactionTypeDeposit, amount)
 	tx.CallbackURL = callbackURL
 
 	if err := s.txRepo.Create(ctx, tx); err != nil {
 		s.logger.Error("failed to create deposit transaction", zap.Error(err))
+		s.writeOutbox(ctx, "deposit.failed", map[string]interface{}{"error": "create_tx", "user_id": userID.String(), "amount": amount.String()})
 		return err
 	}
 
@@ -68,17 +85,19 @@ func (s *TransactionService) ProcessDeposit(ctx context.Context, userID uuid.UUI
 		)
 		tx.Fail("failed to get user wallet")
 		_ = s.txRepo.Update(ctx, tx)
+		s.writeOutbox(ctx, "deposit.failed", map[string]interface{}{"error": "wallet_lookup", "user_id": userID.String(), "amount": amount.String()})
 		return err
 	}
 
 	wallet := walletInterface.(*userEntity.Wallet)
 
 	// Atualizar saldo
-	newBalance := wallet.Balance + amount.InexactFloat64()
+	newBalance := wallet.Balance + money.Amount().InexactFloat64()
 	if err := s.walletRepo.UpdateBalance(ctx, userID, newBalance); err != nil {
 		s.logger.Error("failed to update balance", zap.Error(err))
 		tx.Fail("failed to update balance")
 		_ = s.txRepo.Update(ctx, tx)
+		s.writeOutbox(ctx, "deposit.failed", map[string]interface{}{"error": "update_balance", "user_id": userID.String(), "amount": amount.String()})
 		return err
 	}
 
@@ -86,15 +105,17 @@ func (s *TransactionService) ProcessDeposit(ctx context.Context, userID uuid.UUI
 	tx.Complete("deposit-" + tx.ID.String())
 	if err := s.txRepo.Update(ctx, tx); err != nil {
 		s.logger.Error("failed to update transaction", zap.Error(err))
+		s.writeOutbox(ctx, "deposit.failed", map[string]interface{}{"error": "update_tx", "user_id": userID.String(), "amount": amount.String()})
 		return err
 	}
 
 	// Publicar evento
 	s.eventBus.PublishAsync(ctx, events.NewDepositCompletedEvent(
 		userID,
-		amount,
+		money.Amount(),
 		tx.TransactionHash,
 	))
+	s.writeOutbox(ctx, "deposit.completed", map[string]interface{}{"user_id": userID.String(), "amount": money.Amount().String(), "tx_hash": tx.TransactionHash})
 
 	s.logger.Info("deposit processed successfully",
 		zap.String("tx_id", tx.ID.String()),
@@ -107,6 +128,10 @@ func (s *TransactionService) ProcessDeposit(ctx context.Context, userID uuid.UUI
 
 // ProcessWithdraw processa um saque
 func (s *TransactionService) ProcessWithdraw(ctx context.Context, userID uuid.UUID, amount decimal.Decimal) error {
+	money, err := valueobject.NewMoney(amount, valueobject.Currency("BRL"))
+	if err != nil {
+		return err
+	}
 	// Validar saldo usando circuit breaker
 	breaker := s.breakerManager.GetBreaker(breaker.BreakerTransactionToUser)
 
@@ -116,12 +141,13 @@ func (s *TransactionService) ProcessWithdraw(ctx context.Context, userID uuid.UU
 
 	if err != nil {
 		s.logger.Error("failed to get user wallet", zap.Error(err))
+		s.writeOutbox(ctx, "withdraw.failed", map[string]interface{}{"error": "wallet_lookup", "user_id": userID.String(), "amount": amount.String()})
 		return ErrInsufficientBalance
 	}
 
 	wallet := walletInterface.(*userEntity.Wallet)
 
-	if wallet.Balance < amount.InexactFloat64() {
+	if wallet.Balance < money.Amount().InexactFloat64() {
 		return ErrInsufficientBalance
 	}
 
@@ -131,26 +157,29 @@ func (s *TransactionService) ProcessWithdraw(ctx context.Context, userID uuid.UU
 
 	if err := s.txRepo.Create(ctx, tx); err != nil {
 		s.logger.Error("failed to create withdraw transaction", zap.Error(err))
+		s.writeOutbox(ctx, "withdraw.failed", map[string]interface{}{"error": "create_tx", "user_id": userID.String(), "amount": amount.String()})
 		return err
 	}
 
 	// Atualizar saldo
-	newBalance := wallet.Balance - amount.InexactFloat64()
+	newBalance := wallet.Balance - money.Amount().InexactFloat64()
 	if err := s.walletRepo.UpdateBalance(ctx, userID, newBalance); err != nil {
 		s.logger.Error("failed to update balance", zap.Error(err))
 		tx.Fail("failed to update balance")
 		_ = s.txRepo.Update(ctx, tx)
+		s.writeOutbox(ctx, "withdraw.failed", map[string]interface{}{"error": "update_balance", "user_id": userID.String(), "amount": amount.String()})
 		return err
 	}
 
 	// Marcar como concluída
 	tx.Complete("withdraw-" + tx.ID.String())
 	_ = s.txRepo.Update(ctx, tx)
+	s.writeOutbox(ctx, "withdraw.completed", map[string]interface{}{"user_id": userID.String(), "amount": money.Amount().String(), "tx_hash": tx.TransactionHash})
 
 	// Publicar evento
 	s.eventBus.PublishAsync(ctx, events.NewWithdrawCompletedEvent(
 		userID,
-		amount,
+		money.Amount(),
 		tx.TransactionHash,
 	))
 

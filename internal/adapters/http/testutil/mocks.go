@@ -49,53 +49,53 @@ func (m *MockAuthService) Login(loginData *dto.LoginRequest) (string, *errors.Ap
 
 // MockTransactionService implementa services.TransactionServiceInterface para testes
 type MockTransactionService struct {
-	DepositFunc         func(string, decimal.Decimal, string) (*services.ServiceResponse, error)
-	WithdrawFunc        func(string, decimal.Decimal, string) (*services.ServiceResponse, error)
-	WithdrawOnChainFunc func(string, entities.BlockchainType, decimal.Decimal, string) (*services.ServiceResponse, error)
-	WithdrawTronFunc    func(string, decimal.Decimal, string) (*services.ServiceResponse, error)
-	TransferFunc        func(string, decimal.Decimal, string, string) (*services.ServiceResponse, error)
-	GetBalanceFunc      func(string) (decimal.Decimal, error)
+	DepositFunc         func(context.Context, string, decimal.Decimal, string) (*services.ServiceResponse, error)
+	WithdrawFunc        func(context.Context, string, decimal.Decimal, string) (*services.ServiceResponse, error)
+	WithdrawOnChainFunc func(context.Context, string, entities.BlockchainType, decimal.Decimal, string) (*services.ServiceResponse, error)
+	WithdrawTronFunc    func(context.Context, string, decimal.Decimal, string) (*services.ServiceResponse, error)
+	TransferFunc        func(context.Context, string, decimal.Decimal, string, string) (*services.ServiceResponse, error)
+	GetBalanceFunc      func(context.Context, string) (decimal.Decimal, error)
 	GetWalletInfoFunc   func(uuid.UUID) (*repo.WalletInfo, error)
 }
 
-func (m *MockTransactionService) Deposit(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) Deposit(ctx context.Context, userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.DepositFunc != nil {
-		return m.DepositFunc(userID, amount, callbackURL)
+		return m.DepositFunc(ctx, userID, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) Withdraw(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) Withdraw(ctx context.Context, userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.WithdrawFunc != nil {
-		return m.WithdrawFunc(userID, amount, callbackURL)
+		return m.WithdrawFunc(ctx, userID, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) WithdrawTron(userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) WithdrawTron(ctx context.Context, userID string, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.WithdrawTronFunc != nil {
-		return m.WithdrawTronFunc(userID, amount, callbackURL)
+		return m.WithdrawTronFunc(ctx, userID, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) WithdrawOnChain(userID string, chain entities.BlockchainType, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) WithdrawOnChain(ctx context.Context, userID string, chain entities.BlockchainType, amount decimal.Decimal, callbackURL string) (*services.ServiceResponse, error) {
 	if m.WithdrawOnChainFunc != nil {
-		return m.WithdrawOnChainFunc(userID, chain, amount, callbackURL)
+		return m.WithdrawOnChainFunc(ctx, userID, chain, amount, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true, "chain": chain}}, nil
 }
 
-func (m *MockTransactionService) Transfer(userID string, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
+func (m *MockTransactionService) Transfer(ctx context.Context, userID string, amount decimal.Decimal, to string, callbackURL string) (*services.ServiceResponse, error) {
 	if m.TransferFunc != nil {
-		return m.TransferFunc(userID, amount, to, callbackURL)
+		return m.TransferFunc(ctx, userID, amount, to, callbackURL)
 	}
 	return &services.ServiceResponse{StatusCode: 200, Body: map[string]interface{}{"success": true}}, nil
 }
 
-func (m *MockTransactionService) GetBalance(userID string) (decimal.Decimal, error) {
+func (m *MockTransactionService) GetBalance(ctx context.Context, userID string) (decimal.Decimal, error) {
 	if m.GetBalanceFunc != nil {
-		return m.GetBalanceFunc(userID)
+		return m.GetBalanceFunc(ctx, userID)
 	}
 	return decimal.NewFromInt(1000), nil
 }
@@ -309,7 +309,6 @@ func (m *MockRateLimiter) IsAllowed(userID string, action string) bool {
 // SetupTestHandler cria um handler de teste com serviços mockados
 func SetupTestHandler() (*http.Handler, *fiber.App) {
 	userMock := &MockUserService{}
-	authMock := &MockAuthService{}
 	txMock := &MockTransactionService{}
 	tronMock := &MockTronService{}
 	loggerMock := &MockLogger{}
@@ -317,13 +316,11 @@ func SetupTestHandler() (*http.Handler, *fiber.App) {
 
 	handler := http.NewHandlerForTesting(
 		userMock,
-		authMock,
 		txMock,
 		tronMock,
 		nil,
 		loggerMock,
 		rateLimiterMock,
-		nil,
 	)
 
 	app := fiber.New(fiber.Config{

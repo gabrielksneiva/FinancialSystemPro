@@ -41,8 +41,11 @@ func TestConvertAmountToBaseUnit_Success(t *testing.T) {
 func TestConvertAmountToBaseUnit_EthereumOverflow(t *testing.T) {
 	// 100 ETH should overflow int64 when converted to wei (1e20)
 	_, err := ConvertAmountToBaseUnit(entities.BlockchainEthereum, decimal.NewFromInt(100))
-	if err == nil || (err != nil && !contains(err.Error(), "valor muito grande")) {
-		t.Fatalf("expected overflow error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected overflow error, got nil")
+	}
+	if !contains(err.Error(), "valor muito grande") {
+		t.Fatalf("expected overflow error message, got %v", err)
 	}
 }
 

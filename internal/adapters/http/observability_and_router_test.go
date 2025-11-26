@@ -92,7 +92,8 @@ func TestRouterRegistersBasicEndpoints(t *testing.T) {
 	app := fiber.New()
 	logger := zap.NewNop()
 	bm := breaker.NewBreakerManager(logger)
-	router(app, nil, nil, nil, nil, nil, logger, nil, bm)
+	// updated signature: (app, userSvc, txnSvc, logger, queueMgr, breakerMgr)
+	router(app, nil, nil, logger, nil, bm)
 
 	// Health endpoint
 	r := httptest.NewRequest(fiber.MethodGet, "/health", nil)

@@ -3,7 +3,6 @@ package http_test
 import (
 	"encoding/json"
 	"financial-system-pro/internal/adapters/http"
-	"financial-system-pro/internal/application/services"
 	"net/http/httptest"
 	"testing"
 
@@ -17,19 +16,13 @@ import (
 func setupTestHandler() (*http.Handler, *fiber.App) {
 	logger := zap.NewNop()
 
-	userService := &services.UserService{Logger: logger}
-	authService := &services.AuthService{Logger: logger}
-	transactionService := &services.TransactionService{Logger: logger}
-
 	h := http.NewHandlerForTesting(
-		userService,
-		authService,
-		transactionService,
-		&services.TronService{},
-		nil,
+		nil, // ddd user service not required for liveness
+		nil, // ddd txn service not required for liveness
+		nil, // tron gateway not needed here
+		nil, // queue manager
 		http.NewZapLoggerAdapter(logger),
 		http.NewRateLimiter(logger),
-		nil,
 	)
 
 	app := fiber.New()
@@ -57,21 +50,20 @@ func TestReadinessProbe(t *testing.T) {
 	req := httptest.NewRequest("GET", "/ready", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	// Without DDD services wired, readiness should be 503 (degraded)
+	assert.Equal(t, fiber.StatusServiceUnavailable, resp.StatusCode)
 }
 
 func TestHealthCheckFull_Degraded(t *testing.T) {
 	logger := zap.NewNop()
 	// userService nil forces degraded + database down path
 	h := http.NewHandlerForTesting(
+		nil, // no user service
+		nil, // no txn service
 		nil,
-		&services.AuthService{Logger: logger},
-		&services.TransactionService{Logger: logger},
-		&services.TronService{},
 		nil,
 		http.NewZapLoggerAdapter(logger),
 		http.NewRateLimiter(logger),
-		nil,
 	)
 	app := fiber.New()
 	app.Get("/health/full", h.HealthCheckFull)

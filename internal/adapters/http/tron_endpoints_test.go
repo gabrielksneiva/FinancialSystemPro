@@ -85,7 +85,7 @@ func perform(app *fiber.App, method, path string) (int, string) {
 }
 
 func TestGetTronBalance_MissingAddress(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/balance", h.GetTronBalance)
 
@@ -99,7 +99,7 @@ func TestGetTronBalance_MissingAddress(t *testing.T) {
 }
 
 func TestGetTronBalance_InvalidAddress(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{validateFn: func(string) bool { return false }}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{validateFn: func(string) bool { return false }}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/balance", h.GetTronBalance)
 
@@ -113,7 +113,7 @@ func TestGetTronBalance_InvalidAddress(t *testing.T) {
 }
 
 func TestGetTronBalance_ServiceError(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{balanceErr: errors.New("boom")}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{balanceErr: errors.New("boom")}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/balance", h.GetTronBalance)
 
@@ -127,7 +127,7 @@ func TestGetTronBalance_ServiceError(t *testing.T) {
 }
 
 func TestGetTronBalance_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{balance: 1500000}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{balance: 1500000}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/balance", h.GetTronBalance)
 
@@ -167,7 +167,7 @@ func performWithBody(app *fiber.App, method, path, body string) (int, string) {
 }
 
 func TestSendTronTransaction_InvalidBody(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/send", h.SendTronTransaction)
 	status, body := performWithBody(app, fiber.MethodPost, "/api/tron/send", "{")
@@ -180,7 +180,7 @@ func TestSendTronTransaction_InvalidBody(t *testing.T) {
 }
 
 func TestSendTronTransaction_InvalidFrom(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/send", h.SendTronTransaction)
 	body := `{"from_address":"TBAD","to_address":"TGOOD","private_key":"K","amount":1}`
@@ -191,7 +191,7 @@ func TestSendTronTransaction_InvalidFrom(t *testing.T) {
 }
 
 func TestSendTronTransaction_InvalidTo(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/send", h.SendTronTransaction)
 	body := `{"from_address":"TGOOD","to_address":"TBAD","private_key":"K","amount":1}`
@@ -202,7 +202,7 @@ func TestSendTronTransaction_InvalidTo(t *testing.T) {
 }
 
 func TestSendTronTransaction_ServiceError(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{sendTxErr: errors.New("fail")}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{sendTxErr: errors.New("fail")}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/send", h.SendTronTransaction)
 	body := `{"from_address":"TA","to_address":"TB","private_key":"K","amount":1}`
@@ -213,7 +213,7 @@ func TestSendTronTransaction_ServiceError(t *testing.T) {
 }
 
 func TestSendTronTransaction_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{sendTxHash: "0xHASH"}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{sendTxHash: "0xHASH"}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/send", h.SendTronTransaction)
 	body := `{"from_address":"TA","to_address":"TB","private_key":"K","amount":2}`
@@ -227,7 +227,7 @@ func TestSendTronTransaction_Success(t *testing.T) {
 
 // --- GetTronTransactionStatus tests ---
 func TestGetTronTransactionStatus_MissingHash(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/tx-status", h.GetTronTransactionStatus)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/tx-status")
@@ -237,7 +237,7 @@ func TestGetTronTransactionStatus_MissingHash(t *testing.T) {
 }
 
 func TestGetTronTransactionStatus_ServiceError(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{txStatusErr: errors.New("oops")}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{txStatusErr: errors.New("oops")}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/tx-status", h.GetTronTransactionStatus)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/tx-status?tx_hash=ABCD")
@@ -247,7 +247,7 @@ func TestGetTronTransactionStatus_ServiceError(t *testing.T) {
 }
 
 func TestGetTronTransactionStatus_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{txStatus: "CONFIRMED"}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{txStatus: "CONFIRMED"}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/tx-status", h.GetTronTransactionStatus)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/tx-status?tx_hash=ABCD")
@@ -258,7 +258,7 @@ func TestGetTronTransactionStatus_Success(t *testing.T) {
 
 // --- CreateTronWallet tests ---
 func TestCreateTronWallet_ServiceError(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{createWalletErr: errors.New("x")}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{createWalletErr: errors.New("x")}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/wallet", h.CreateTronWallet)
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/wallet", "{}")
@@ -268,7 +268,7 @@ func TestCreateTronWallet_ServiceError(t *testing.T) {
 }
 
 func TestCreateTronWallet_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/wallet", h.CreateTronWallet)
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/wallet", "{}")
@@ -279,7 +279,7 @@ func TestCreateTronWallet_Success(t *testing.T) {
 
 // --- CheckTronNetwork tests ---
 func TestCheckTronNetwork_Disconnected(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{connected: false}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{connected: false}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/network", h.CheckTronNetwork)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/network")
@@ -289,7 +289,7 @@ func TestCheckTronNetwork_Disconnected(t *testing.T) {
 }
 
 func TestCheckTronNetwork_InfoError(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{connected: true, networkInfoErr: errors.New("neterr")}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{connected: true, networkInfoErr: errors.New("neterr")}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/network", h.CheckTronNetwork)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/network")
@@ -299,7 +299,7 @@ func TestCheckTronNetwork_InfoError(t *testing.T) {
 }
 
 func TestCheckTronNetwork_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{connected: true, networkInfo: map[string]interface{}{"height": 10}}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{connected: true, networkInfo: map[string]interface{}{"height": 10}}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/network", h.CheckTronNetwork)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/network")
@@ -310,7 +310,7 @@ func TestCheckTronNetwork_Success(t *testing.T) {
 
 // --- EstimateTronGas tests ---
 func TestEstimateTronGas_InvalidBody(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/estimate-energy", h.EstimateTronGas)
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/estimate-energy", "{")
@@ -320,29 +320,29 @@ func TestEstimateTronGas_InvalidBody(t *testing.T) {
 }
 
 func TestEstimateTronGas_InvalidFrom(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/estimate-energy", h.EstimateTronGas)
 	body := `{"from_address":"TBAD","to_address":"TGOOD","amount":1}`
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/estimate-energy", body)
-	if status != fiber.StatusBadRequest || !contains(b, "Invalid from address") {
+	if status != fiber.StatusBadRequest || !contains(b, "invalid from address") {
 		t.Fatalf("expected 400 invalid from got %d body=%s", status, b)
 	}
 }
 
 func TestEstimateTronGas_InvalidTo(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{validateFn: func(a string) bool { return !strings.Contains(a, "BAD") }}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/estimate-energy", h.EstimateTronGas)
 	body := `{"from_address":"TGOOD","to_address":"TBAD","amount":1}`
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/estimate-energy", body)
-	if status != fiber.StatusBadRequest || !contains(b, "Invalid to address") {
+	if status != fiber.StatusBadRequest || !contains(b, "invalid to address") {
 		t.Fatalf("expected 400 invalid to got %d body=%s", status, b)
 	}
 }
 
 func TestEstimateTronGas_ServiceError(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{estimateGasErr: errors.New("egerr")}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{estimateGasErr: errors.New("egerr")}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/estimate-energy", h.EstimateTronGas)
 	body := `{"from_address":"TA","to_address":"TB","amount":2}`
@@ -353,7 +353,7 @@ func TestEstimateTronGas_ServiceError(t *testing.T) {
 }
 
 func TestEstimateTronGas_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{estimateGas: 999}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{estimateGas: 999}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/estimate-energy", h.EstimateTronGas)
 	body := `{"from_address":"TA","to_address":"TB","amount":3}`
@@ -365,7 +365,7 @@ func TestEstimateTronGas_Success(t *testing.T) {
 
 // --- GetRPCStatus & GetAvailableMethods tests ---
 func TestGetRPCStatus_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/rpc-status", h.GetRPCStatus)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/rpc-status")
@@ -375,7 +375,7 @@ func TestGetRPCStatus_Success(t *testing.T) {
 }
 
 func TestGetAvailableMethods_Success(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Get("/api/tron/rpc-methods", h.GetAvailableMethods)
 	status, b := perform(app, fiber.MethodGet, "/api/tron/rpc-methods")
@@ -386,7 +386,7 @@ func TestGetAvailableMethods_Success(t *testing.T) {
 
 // --- CallRPCMethod tests ---
 func TestCallRPCMethod_NoClient(t *testing.T) {
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{rpcClient: nil}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{rpcClient: nil}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/rpc-call", h.CallRPCMethod)
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/rpc-call", `{"method":"eth_blockNumber"}`)
@@ -403,7 +403,7 @@ func TestCallRPCMethod_CallError(t *testing.T) {
 	}))
 	defer server.Close()
 	rpc := services.NewRPCClient(server.URL)
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{rpcClient: rpc}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{rpcClient: rpc}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/rpc-call", h.CallRPCMethod)
 	body := `{"method":"eth_blockNumber"}`
@@ -423,7 +423,7 @@ func TestCallRPCMethod_Success(t *testing.T) {
 	}))
 	defer server.Close()
 	rpc := services.NewRPCClient(server.URL)
-	h := NewHandlerForTesting(nil, nil, nil, &tronFullMock{rpcClient: rpc}, nil, newMockLogger(), nil, nil)
+	h := NewHandlerForTesting(nil, nil, &tronFullMock{rpcClient: rpc}, nil, newMockLogger(), nil)
 	app := fiber.New()
 	app.Post("/api/tron/rpc-call", h.CallRPCMethod)
 	status, b := performWithBody(app, fiber.MethodPost, "/api/tron/rpc-call", `{"method":"eth_blockNumber"}`)

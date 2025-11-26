@@ -2,33 +2,28 @@ package container
 
 import (
 	"context"
-	"financial-system-pro/internal/domain/entities"
 	"fmt"
 	"os"
 	"time"
 
 	"financial-system-pro/internal/application/services"
+	bcApp "financial-system-pro/internal/contexts/blockchain/application"
+	bcGw "financial-system-pro/internal/contexts/blockchain/infrastructure/gateway"
+	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
+	txnRepo "financial-system-pro/internal/contexts/transaction/domain/repository"
+	txnPers "financial-system-pro/internal/contexts/transaction/infrastructure/persistence"
+	userSvc "financial-system-pro/internal/contexts/user/application/service"
+	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
+	userPers "financial-system-pro/internal/contexts/user/infrastructure/persistence"
+	"financial-system-pro/internal/domain/entities"
 	repositories "financial-system-pro/internal/infrastructure/database"
 	"financial-system-pro/internal/infrastructure/logger"
-	workers "financial-system-pro/internal/infrastructure/queue"
+	messaging "financial-system-pro/internal/infrastructure/messaging"
 	"financial-system-pro/internal/shared/breaker"
 	"financial-system-pro/internal/shared/database"
 	"financial-system-pro/internal/shared/events"
 	"financial-system-pro/internal/shared/tracing"
 	"financial-system-pro/internal/shared/validator"
-
-	// DDD Bounded Contexts - User
-	userSvc "financial-system-pro/internal/contexts/user/application/service"
-	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
-	userPers "financial-system-pro/internal/contexts/user/infrastructure/persistence"
-
-	// DDD Bounded Contexts - Transaction
-	txnSvc "financial-system-pro/internal/contexts/transaction/application/service"
-	txnRepo "financial-system-pro/internal/contexts/transaction/domain/repository"
-	txnPers "financial-system-pro/internal/contexts/transaction/infrastructure/persistence"
-
-	// DDD Bounded Contexts - Blockchain
-	bcPers "financial-system-pro/internal/contexts/blockchain/infrastructure/persistence"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
@@ -39,16 +34,10 @@ import (
 // Ela será fornecida pelo package api para evitar ciclo de import
 type RegisterRoutesFunc func(
 	app *fiber.App,
-	userService *services.UserService,
-	authService *services.AuthService,
-	transactionService *services.TransactionService,
-	tronService *services.TronService,
-	multiChainWalletService *services.MultiChainWalletService,
-	logger *zap.Logger,
-	qm *workers.QueueManager,
-	breakerManager *breaker.BreakerManager,
 	dddUserService *userSvc.UserService,
 	dddTransactionService *txnSvc.TransactionService,
+	logger *zap.Logger,
+	breakerManager *breaker.BreakerManager,
 )
 
 // Tipos para DDD Repositories e Services (evita conflitos no fx)
@@ -98,7 +87,11 @@ func ProvideSharedDatabaseConnection(cfg Config) (database.Connection, error) {
 		return nil, nil
 	}
 
-	return database.NewPostgresConnection(cfg.DatabaseURL)
+	conn, err := database.NewPostgresConnection(cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 // ProvideDatabaseConnection cria a conexão com banco de dados (legacy)
@@ -115,104 +108,12 @@ func ProvideDatabaseConnection(cfg Config) (*repositories.NewDatabase, error) {
 	return &repositories.NewDatabase{DB: db}, nil
 }
 
-// ProvideUserService cria o serviço de usuários
-func ProvideUserService(database *repositories.NewDatabase, lg *zap.Logger, walletManager entities.WalletManager) *services.UserService {
-	if database == nil {
-		return nil
-	}
-	return services.NewUserService(database, lg, walletManager)
-}
-
-// ProvideAuthService cria o serviço de autenticação
-func ProvideAuthService(database *repositories.NewDatabase, lg *zap.Logger) *services.AuthService {
-	if database == nil {
-		return nil
-	}
-	return services.NewAuthService(database, lg)
-}
+// ProvideUserService removed - replaced by DDD UserService in contexts/user/application/service
+// ProvideAuthService removed - DDD contexts handle authentication via UserService.Authenticate
 
 // ProvideTransactionWorkerPool cria o pool de workers para transações
-func ProvideTransactionWorkerPool(database *repositories.NewDatabase) *workers.TransactionWorkerPool {
-	if database == nil {
-		return nil
-	}
-	return workers.NewTransactionWorkerPool(database, 5, 100)
-}
-
-// ProvideTransactionService cria o serviço de transações
-func ProvideTransactionService(
-	database *repositories.NewDatabase,
-	pool *workers.TransactionWorkerPool,
-	tronPool *workers.TronWorkerPool,
-	tronSvc *services.TronService,
-	eventBus events.Bus,
-	lg *zap.Logger,
-) *services.TransactionService {
-	if database == nil {
-		return nil
-	}
-	return services.NewTransactionService(database, nil, tronSvc, tronPool, eventBus, lg)
-}
-
-// ProvideEthereumService cria serviço Ethereum simples
-func ProvideEthereumService() *services.EthereumService { return services.NewEthereumService() }
-
-// ProvideBlockchainRegistry cria registro multi-chain com Tron + Ethereum
-
-// ProvideBitcoinService cria serviço Bitcoin simples
-func ProvideBitcoinService() *services.BitcoinService { return services.NewBitcoinService() }
-
-// ProvideBlockchainRegistry cria registro multi-chain com Tron + Ethereum + (opcional) Bitcoin
-func ProvideBlockchainRegistry(tronSvc *services.TronService, ethSvc *services.EthereumService, btcSvc *services.BitcoinService) *services.BlockchainRegistry {
-	reg := services.NewBlockchainRegistry()
-	if tronSvc != nil {
-		reg.Register(tronSvc)
-	}
-	if ethSvc != nil {
-		reg.Register(ethSvc)
-	}
-	if btcSvc != nil {
-		reg.Register(btcSvc)
-	}
-	return reg
-}
-
-// ProvideOnChainWalletRepository cria adapter de wallets multi-chain
-func ProvideOnChainWalletRepository(db *repositories.NewDatabase) services.OnChainWalletRepositoryPort {
-	if db == nil {
-		return nil
-	}
-	return services.NewOnChainWalletRepositoryAdapter(db)
-}
-
-// ProvideMultiChainWalletService constrói serviço e injeta criptografia se disponível
-func ProvideMultiChainWalletService(reg *services.BlockchainRegistry, repo services.OnChainWalletRepositoryPort) *services.MultiChainWalletService {
-	if reg == nil || repo == nil {
-		return nil
-	}
-	svc := services.NewMultiChainWalletService(reg, repo)
-	// tenta criar provider; se falhar permanece Noop
-	if enc, err := services.NewAESEncryptionProviderFromEnv(); err == nil && enc != nil {
-		svc.WithEncryption(enc)
-	}
-	return svc
-}
-
-// ProvideTronService cria o serviço de Tron
-func ProvideTronService(cfg Config) *services.TronService {
-	return services.NewTronService(cfg.TronVaultAddress, cfg.TronVaultPrivateKey)
-}
-
-// ProvideTronWorkerPool cria o pool de workers para confirmação de transações TRON
-func ProvideTronWorkerPool(
-	database *repositories.NewDatabase,
-	tronSvc *services.TronService,
-	lg *zap.Logger,
-) *workers.TronWorkerPool {
-	pool := workers.NewTronWorkerPool(database, tronSvc, 5, lg)
-	pool.Start() // Inicia automaticamente
-	return pool
-}
+// Legacy worker pool & multi-chain providers removed (TronService replaced by TronGateway)
+// Ethereum/Bitcoin simple services removed during DDD consolidation; can be re-added via context-specific gateways later.
 
 // ProvideApp cria a aplicação Fiber
 func ProvideApp() *fiber.App {
@@ -222,6 +123,25 @@ func ProvideApp() *fiber.App {
 // ProvideLogger cria o logger Zap centralizado
 func ProvideLogger() (*zap.Logger, error) {
 	return logger.ProvideLogger()
+}
+
+// ProvideTronGateway constrói TronGateway usando variáveis de ambiente
+func ProvideTronGateway() *bcGw.TronGateway {
+	return bcGw.NewTronGatewayFromEnv()
+}
+
+// ProvideETHGateway constrói Ethereum gateway
+func ProvideETHGateway() *bcGw.ETHGateway { return bcGw.NewETHGatewayFromEnv() }
+
+// ProvideBTCGateway constrói Bitcoin gateway
+func ProvideBTCGateway() *bcGw.BTCGateway { return bcGw.NewBTCGatewayFromEnv() }
+
+// ProvideSOLGateway constrói Solana gateway
+func ProvideSOLGateway() *bcGw.SOLGateway { return bcGw.NewSOLGatewayFromEnv() }
+
+// ProvideDDDBlockchainRegistry monta registro DDD de blockchains
+func ProvideDDDBlockchainRegistry(tron *bcGw.TronGateway, eth *bcGw.ETHGateway, btc *bcGw.BTCGateway, sol *bcGw.SOLGateway) *bcApp.BlockchainRegistry {
+	return bcApp.NewBlockchainRegistry(tron, eth, btc, sol)
 }
 
 // ProvideEventBus cria o event bus in-memory
@@ -240,9 +160,7 @@ func ProvideValidator() *validator.ValidatorService {
 }
 
 // ProvideWalletManager cria o gerenciador de carteiras TRON
-func ProvideWalletManager() entities.WalletManager {
-	return services.NewTronWalletManager()
-}
+func ProvideWalletManager() entities.WalletManager { return services.NewTronWalletManager() }
 
 // StartServer inicia o servidor Fiber e workers
 func StartServer(
@@ -250,15 +168,10 @@ func StartServer(
 	app *fiber.App,
 	lg *zap.Logger,
 	eventBus events.Bus,
-	userService *services.UserService,
-	authService *services.AuthService,
-	transactionService *services.TransactionService,
-	tronService *services.TronService,
-	multiChainWalletService *services.MultiChainWalletService,
 	registerRoutes RegisterRoutesFunc,
-	qm *workers.QueueManager,
 	breakerManager *breaker.BreakerManager,
-	// DDD Services (podem ser nil se não estiverem disponíveis)
+	db *repositories.NewDatabase,
+	// DDD Services
 	dddUserService *userSvc.UserService,
 	dddTransactionService *txnSvc.TransactionService,
 ) {
@@ -281,39 +194,35 @@ func StartServer(
 			// Adicionar middleware de tracing
 			app.Use(tracing.FiberTracingMiddleware("financial-system-pro"))
 
-			// Se temos DDD services, usar as novas rotas DDD
-			if dddUserService != nil && dddTransactionService != nil {
-				lg.Info("registering DDD routes")
-				// Importar a função do package http
-				// Isso será feito dinamicamente já que estamos no package container
-				// e precisamos evitar ciclo de import
-
-				// Para isso, vamos usar a função RegisterDDDRoutes se disponível
-				// Por enquanto, registrar apenas legacy routes
-				if registerRoutes != nil {
-					registerRoutes(app, userService, authService, transactionService, tronService, multiChainWalletService, lg, qm, breakerManager, dddUserService, dddTransactionService)
-				} else {
-					registerFiberHealthChecks(app)
-				}
+			// Registrar apenas rotas DDD se disponíveis, senão health checks
+			if registerRoutes != nil && dddUserService != nil && dddTransactionService != nil {
+				lg.Info("registering DDD v2 routes")
+				registerRoutes(app, dddUserService, dddTransactionService, lg, breakerManager)
 			} else {
-				// Registrar legacy rotas
-				if registerRoutes != nil {
-					registerRoutes(app, userService, authService, transactionService, tronService, multiChainWalletService, lg, qm, breakerManager, dddUserService, dddTransactionService)
-				} else {
-					// Fallback: só health checks
-					registerFiberHealthChecks(app)
-				}
+				lg.Warn("DDD services missing; registering health checks only")
+				registerFiberHealthChecks(app)
 			}
 
-			// Iniciar workers de fila se disponível
-			// TODO: Iniciar workers quando QueueManager conectar com sucesso
-			if qm != nil {
-				// Aguardar um pouco para QueueManager conectar
-				time.Sleep(5 * time.Second)
-				if err := qm.StartWorkers(ctx); err != nil {
-					lg.Warn("failed to start queue workers", zap.Error(err))
-					// Não quebra a app
-				}
+			// Iniciar OutboxProcessor periódico se banco disponível
+			if db != nil {
+				store := repositories.NewGormOutboxStore(db)
+				processor := messaging.NewOutboxProcessor(store, eventBus, lg)
+				lg.Info("starting outbox processor goroutine")
+				go func() {
+					ticker := time.NewTicker(5 * time.Second)
+					defer ticker.Stop()
+					for {
+						select {
+						case <-ctx.Done():
+							lg.Info("outbox processor stopping")
+							return
+						case <-ticker.C:
+							if err := processor.ProcessBatch(context.Background(), 50); err != nil {
+								lg.Warn("outbox batch failed", zap.Error(err))
+							}
+						}
+					}
+				}()
 			}
 
 			go func() { _ = app.Listen(":3000") }()
@@ -329,9 +238,7 @@ func StartServer(
 				}
 			}
 
-			if qm != nil {
-				qm.Close()
-			}
+			// queue manager removido na reconstrução
 			return app.Shutdown()
 		},
 	})
@@ -358,26 +265,7 @@ func ProvideRegisterRoutes() RegisterRoutesFunc {
 
 // ProvideQueueManager fornece o gerenciador de fila Redis
 // Redis é OPCIONAL - se falhar, app continua sem async queue
-func ProvideQueueManager(cfg Config, lg *zap.Logger, database *repositories.NewDatabase) *workers.QueueManager {
-	lg.Info("[REDIS DEBUG] ProvideQueueManager called",
-		zap.String("redis_url_length", fmt.Sprintf("%d chars", len(cfg.RedisURL))),
-		zap.Bool("redis_url_empty", cfg.RedisURL == ""))
-
-	if cfg.RedisURL == "" {
-		lg.Warn("[REDIS DEBUG] REDIS_URL environment variable not set, running without async queue")
-		return nil
-	}
-
-	lg.Info("[REDIS DEBUG] attempting to initialize queue manager with redis url")
-	qm := workers.NewQueueManager(cfg.RedisURL, lg, database)
-	if qm == nil {
-		lg.Warn("[REDIS DEBUG] queue manager is nil, running without async queue")
-		return nil
-	}
-
-	lg.Info("[REDIS DEBUG] queue manager initialized successfully")
-	return qm
-}
+// Queue manager removed in reconstruction (async Redis queue deprecated in DDD phase)
 
 // ProvideUserRepository cria o repositório de usuários para o DDD User Context
 func ProvideUserRepository(conn database.Connection) userRepo.UserRepository {
@@ -438,13 +326,8 @@ func ProvideDDDTransactionService(
 	)
 }
 
-// ProvideBlockchainTransactionRepository cria o repositório de transações blockchain
-func ProvideBlockchainTransactionRepository(conn database.Connection) *bcPers.PostgresBlockchainTransactionRepository {
-	if conn == nil {
-		return nil
-	}
-	return bcPers.NewPostgresBlockchainTransactionRepository(conn)
-}
+// ProvideBlockchainTransactionRepository removed - no longer needed in DDD refactor
+// (blockchain transactions handled via blockchain context gateway now)
 
 // New cria a aplicação com todas as dependências gerenciadas por fx
 func New() *fx.App {
@@ -454,52 +337,27 @@ func New() *fx.App {
 		fx.Provide(ProvideEventBus),
 		fx.Provide(ProvideBreakerManager),
 		fx.Provide(ProvideValidator),
-		fx.Provide(ProvideQueueManager),
 		fx.Provide(ProvideRegisterRoutes),
 		fx.Provide(ProvideApp),
 		fx.Provide(ProvideDatabaseConnection),
 		fx.Provide(ProvideSharedDatabaseConnection),
 		fx.Provide(ProvideWalletManager),
-		fx.Provide(ProvideUserService),
-		fx.Provide(ProvideAuthService),
-		fx.Provide(ProvideTransactionWorkerPool),
-		fx.Provide(ProvideTronService),
-		fx.Provide(ProvideTronWorkerPool),
-		fx.Provide(ProvideTransactionService),
-		fx.Provide(ProvideEthereumService),
-		fx.Provide(ProvideBlockchainRegistry),
-		fx.Provide(ProvideOnChainWalletRepository),
-		fx.Provide(ProvideMultiChainWalletService),
-		// DDD Repositories
+		// Legacy ProvideUserService and ProvideAuthService removed - using DDD services
+		// TronGateway + DDD blockchain registry
+		fx.Provide(ProvideTronGateway),
+		fx.Provide(ProvideETHGateway),
+		fx.Provide(ProvideBTCGateway),
+		fx.Provide(ProvideSOLGateway),
+		fx.Provide(ProvideDDDBlockchainRegistry),
+		// DDD repositories & services
 		fx.Provide(ProvideUserRepository),
 		fx.Provide(ProvideWalletRepository),
 		fx.Provide(ProvideTransactionRepository),
-		fx.Provide(ProvideBlockchainTransactionRepository),
-		// DDD Services
 		fx.Provide(ProvideDDDUserService),
 		fx.Provide(ProvideDDDTransactionService),
-		// Link legacy services with multi-chain components
-		fx.Invoke(LinkUserMultiChain),
-		fx.Invoke(LinkTransactionMultiChain),
 		fx.Invoke(StartServer),
 	)
 }
 
 // LinkUserMultiChain associa MultiChainWalletService ao UserService legacy
-func LinkUserMultiChain(userService *services.UserService, multi *services.MultiChainWalletService) {
-	if userService != nil && multi != nil {
-		userService.WithMultiChainWalletService(multi)
-	}
-}
-
-// LinkTransactionMultiChain associa ChainRegistry e OnChainWalletRepository ao TransactionService
-func LinkTransactionMultiChain(txService *services.TransactionService, reg *services.BlockchainRegistry, repo services.OnChainWalletRepositoryPort) {
-	if txService != nil {
-		if reg != nil {
-			txService.WithChainRegistry(reg)
-		}
-		if repo != nil {
-			txService.WithOnChainWalletRepository(repo)
-		}
-	}
-}
+// Legacy link functions removidos (serviços legacy eliminados)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"financial-system-pro/internal/contexts/user/domain/entity"
 	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
+	"financial-system-pro/internal/contexts/user/domain/valueobject"
 	"financial-system-pro/internal/shared/events"
 	"testing"
 
@@ -23,7 +24,7 @@ func (r *memUserRepo2) FindByID(ctx context.Context, id uuid.UUID) (*entity.User
 }
 func (r *memUserRepo2) FindByEmail(ctx context.Context, email string) (*entity.User, error) {
 	for _, u := range r.users {
-		if u.Email == email {
+		if u.Email.String() == email {
 			return u, nil
 		}
 	}
@@ -75,7 +76,9 @@ func TestGetUserWallet_Sucesso(t *testing.T) {
 	ur := newMemUserRepo2()
 	wr := newMemWalletRepo2()
 	uid := uuid.New()
-	_ = ur.Create(context.Background(), &entity.User{ID: uid, Email: "w@test.com", Password: "hash"})
+	e, _ := valueobject.NewEmail("w@test.com")
+	p, _ := valueobject.HashFromRaw("password123")
+	_ = ur.Create(context.Background(), &entity.User{ID: uid, Email: e, Password: p})
 	_ = wr.Create(context.Background(), &entity.Wallet{UserID: uid, Address: "A", Balance: 42})
 	svc := NewUserService(ur, wr, bus, lg)
 	wallet, err := svc.GetUserWallet(context.Background(), uid)
@@ -93,7 +96,9 @@ func TestGetUserWallet_Nil(t *testing.T) {
 	ur := newMemUserRepo2()
 	wr := newMemWalletRepo2() // nenhuma wallet criada
 	uid := uuid.New()
-	_ = ur.Create(context.Background(), &entity.User{ID: uid, Email: "nw@test.com", Password: "hash"})
+	e2, _ := valueobject.NewEmail("nw@test.com")
+	p2, _ := valueobject.HashFromRaw("password123")
+	_ = ur.Create(context.Background(), &entity.User{ID: uid, Email: e2, Password: p2})
 	svc := NewUserService(ur, wr, bus, lg)
 	wallet, err := svc.GetUserWallet(context.Background(), uid)
 	if err != nil {

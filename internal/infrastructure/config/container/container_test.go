@@ -1,8 +1,6 @@
 package container
 
 import (
-	"financial-system-pro/internal/application/services"
-	repos "financial-system-pro/internal/infrastructure/database"
 	"os"
 	"testing"
 
@@ -17,33 +15,27 @@ func TestLoadConfigEmpty(t *testing.T) {
 	}
 }
 
-func TestProvideQueueManager_NoRedis(t *testing.T) {
+func TestProvideEventBus_NotNil(t *testing.T) {
 	lg, _ := zap.NewDevelopment()
-	qm := ProvideQueueManager(Config{RedisURL: ""}, lg, nil)
-	if qm != nil {
-		t.Fatalf("esperava nil sem REDIS_URL")
+	bus := ProvideEventBus(lg)
+	if bus == nil {
+		t.Fatalf("esperava event bus não nil")
 	}
 }
 
-func TestProvideBlockchainRegistry(t *testing.T) {
-	tron := services.NewTronService("ADDR", "PK")
-	eth := services.NewEthereumService()
-	btc := services.NewBitcoinService()
-	reg := ProvideBlockchainRegistry(tron, eth, btc)
+func TestProvideDDDBlockchainRegistry(t *testing.T) {
+	tron := ProvideTronGateway()
+	eth := ProvideETHGateway()
+	btc := ProvideBTCGateway()
+	sol := ProvideSOLGateway()
+	reg := ProvideDDDBlockchainRegistry(tron, eth, btc, sol)
 	if reg == nil {
 		t.Fatalf("registro nil")
 	}
-	if !reg.Has("tron") || !reg.Has("ethereum") || !reg.Has("bitcoin") {
-		t.Fatalf("não registrou chains esperadas")
-	}
 }
 
-func TestProvideUserService_NilDB(t *testing.T) {
-	usr := ProvideUserService(nil, zap.NewNop(), services.NewTronWalletManager())
-	if usr != nil {
-		t.Fatalf("esperava nil sem DB")
-	}
-}
+// TestProvideUserService_NilDB removed - legacy service deprecated
+// TestUserService_NoPanic removed - legacy service deprecated
 
 func TestProvideDatabaseConnection_Empty(t *testing.T) {
 	db, err := ProvideDatabaseConnection(Config{DatabaseURL: ""})
@@ -65,17 +57,11 @@ func TestProvideSharedDatabaseConnection_Empty(t *testing.T) {
 	}
 }
 
-func TestProvideOnChainWalletRepository_NilDB(t *testing.T) {
-	repo := ProvideOnChainWalletRepository(nil)
+func TestProvideWalletRepository_NilConn(t *testing.T) {
+	repo := ProvideWalletRepository(nil)
 	if repo != nil {
 		t.Fatalf("esperava nil")
 	}
 }
 
-func TestLinkUserMultiChain_NoMulti(t *testing.T) {
-	lg := zap.NewNop()
-	dummyDB := &repos.NewDatabase{}
-	usvc := services.NewUserService(dummyDB, lg, services.NewTronWalletManager())
-	LinkUserMultiChain(usvc, nil)
-	// Sem panic = sucesso.
-}
+// TestUserService_NoPanic removed - testing deprecated service

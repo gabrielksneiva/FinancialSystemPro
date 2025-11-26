@@ -1,12 +1,10 @@
 package http
 
 import (
-	"context"
 	"financial-system-pro/internal/application/dto"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"go.uber.org/zap"
 )
 
 // HealthCheck verifica saúde de todos os components
@@ -26,19 +24,9 @@ func (h *Handler) HealthCheckFull(ctx *fiber.Ctx) error {
 
 	// Check Database
 	dbStatus := "up"
-	if h.userService == nil || h.transactionService == nil {
+	if h.dddUserService == nil || h.dddTransactionService == nil {
 		dbStatus = "down"
 		status.Status = "degraded"
-	} else {
-		// Tentar um query leve no banco
-		db := h.userService.GetDatabase()
-		if db != nil {
-			_, err := db.FindUserByField("id", "00000000-0000-0000-0000-000000000000")
-			if err != nil && err.Error() != "record not found" {
-				dbStatus = "down"
-				status.Status = "degraded"
-			}
-		}
 	}
 	status.Services["database"] = dbStatus
 
@@ -54,16 +42,12 @@ func (h *Handler) HealthCheckFull(ctx *fiber.Ctx) error {
 
 	// Check Tron RPC
 	tronStatus := "up"
-	if h.tronService == nil {
+	if h.tronGateway == nil {
 		tronStatus = "disabled"
 	} else {
-		// Tentar um call leve na Tron RPC
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := h.tronService.HealthCheck(ctx); err != nil {
+		// TronGateway doesn't expose HealthCheck; treat connection boolean as health
+		if !h.tronGateway.IsTestnetConnected() {
 			tronStatus = "down"
-			h.logger.Warn("tron rpc health check failed", zap.Error(err))
-			// Não degrada status geral pois Tron é opcional
 		}
 	}
 	status.Services["tron_rpc"] = tronStatus
@@ -85,7 +69,7 @@ func (h *Handler) HealthCheckFull(ctx *fiber.Ctx) error {
 // @Failure      503  {object}  dto.ProbeResponse
 // @Router       /ready [get]
 func (h *Handler) ReadinessProbe(ctx *fiber.Ctx) error {
-	if h.userService == nil || h.transactionService == nil {
+	if h.dddUserService == nil || h.dddTransactionService == nil {
 		return ctx.Status(fiber.StatusServiceUnavailable).JSON(dto.ProbeResponse{
 			Ready:  false,
 			Reason: "database not ready",

@@ -2,7 +2,8 @@ package http
 
 import (
 	_ "financial-system-pro/docs" // Swagger docs
-	"financial-system-pro/internal/application/services"
+	txnDDD "financial-system-pro/internal/contexts/transaction/application/service"
+	userDDD "financial-system-pro/internal/contexts/user/application/service"
 	workers "financial-system-pro/internal/infrastructure/queue"
 	"financial-system-pro/internal/shared/breaker"
 	"time"
@@ -13,7 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func router(app *fiber.App, userService services.UserServiceInterface, authService services.AuthServiceInterface, trasactionService services.TransactionServiceInterface, tronService services.TronServiceInterface, multiChainWalletService *services.MultiChainWalletService, logger *zap.Logger, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
+// router (legacy signature removido). Agora utiliza serviços DDD diretamente.
+func router(app *fiber.App, userService *userDDD.UserService, transactionService *txnDDD.TransactionService, logger *zap.Logger, qm *workers.QueueManager, breakerManager *breaker.BreakerManager) {
 	rateLimiter := NewRateLimiter(logger)
 
 	// Criar adapters para as interfaces
@@ -22,16 +24,11 @@ func router(app *fiber.App, userService services.UserServiceInterface, authServi
 	rateLimiterAdapter := NewRateLimiterAdapter(rateLimiter)
 
 	handler := &Handler{
-		userService:        userService,
-		authService:        authService,
-		transactionService: trasactionService,
-		tronService:        tronService,
-		queueManager:       queueManagerAdapter,
-		logger:             loggerAdapter,
-		rateLimiter:        rateLimiterAdapter,
-	}
-	if multiChainWalletService != nil {
-		handler.WithMultiChainWalletService(multiChainWalletService)
+		dddUserService:        userService,
+		dddTransactionService: transactionService,
+		queueManager:          queueManagerAdapter,
+		logger:                loggerAdapter,
+		rateLimiter:           rateLimiterAdapter,
 	}
 
 	// Health check endpoints (sem autenticação, sem dependência de DB)

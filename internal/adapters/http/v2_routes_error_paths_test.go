@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	txnService "financial-system-pro/internal/contexts/transaction/application/service"
 	txnEntity "financial-system-pro/internal/contexts/transaction/domain/entity"
 	txnRepo "financial-system-pro/internal/contexts/transaction/domain/repository"
@@ -11,6 +10,7 @@ import (
 	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
 	"financial-system-pro/internal/shared/breaker"
 	"financial-system-pro/internal/shared/events"
+	"financial-system-pro/internal/shared/utils"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -47,7 +47,7 @@ func (r *epUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*userEntity.Us
 }
 func (r *epUserRepo) FindByEmail(ctx context.Context, email string) (*userEntity.User, error) {
 	for _, u := range r.users {
-		if strings.EqualFold(u.Email, email) {
+		if strings.EqualFold(string(u.Email), email) {
 			return u, nil
 		}
 	}
@@ -134,25 +134,8 @@ func setupAppForErrors(t *testing.T) (*fiber.App, string) {
 	svcTxn := txnService.NewTransactionService(tr, ur, wr, bus, br, logger)
 	app := fiber.New()
 	registerV2DDDRoutes(app, svcUser, svcTxn, logger, br)
-	// criar usuário e logar
-	user, _ := svcUser.CreateUser(context.Background(), "e@e.com", "pw")
-	_ = wr.Create(context.Background(), &userEntity.Wallet{UserID: user.ID, Address: "ADDR", Balance: 0})
-	loginReq := httptest.NewRequest("POST", "/v2/auth/login", strings.NewReader(`{"email":"e@e.com","password":"pw"}`))
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, err := app.Test(loginReq)
-	if err != nil {
-		t.Fatalf("login req err: %v", err)
-	}
-	defer loginResp.Body.Close()
-	// extrair token simples
-	var respBody map[string]string
-	if err := json.NewDecoder(loginResp.Body).Decode(&respBody); err != nil {
-		t.Fatalf("decode login: %v", err)
-	}
-	token := respBody["token"]
-	if token == "" {
-		t.Fatalf("token vazio")
-	}
+	// criar token diretamente para evitar dependências do endpoint de login
+	token, _ := utils.CreateJWTToken(map[string]interface{}{"ID": uuid.New().String()})
 	return app, token
 }
 
@@ -273,14 +256,14 @@ func TestV2Routes_CreateUserConflict(t *testing.T) {
 	app := fiber.New()
 	registerV2DDDRoutes(app, svcUser, svcTxn, logger, br)
 	// criar
-	req1 := httptest.NewRequest("POST", "/v2/users", strings.NewReader(`{"email":"a@b.com","password":"pw"}`))
+	req1 := httptest.NewRequest("POST", "/v2/users", strings.NewReader(`{"email":"a@b.com","password":"password"}`))
 	req1.Header.Set("Content-Type", "application/json")
 	resp1, _ := app.Test(req1)
 	if resp1.StatusCode != fiber.StatusCreated {
 		t.Fatalf("esperado 201 primeira criação obtido %d", resp1.StatusCode)
 	}
 	// duplicar
-	req2 := httptest.NewRequest("POST", "/v2/users", strings.NewReader(`{"email":"a@b.com","password":"pw"}`))
+	req2 := httptest.NewRequest("POST", "/v2/users", strings.NewReader(`{"email":"a@b.com","password":"password"}`))
 	req2.Header.Set("Content-Type", "application/json")
 	resp2, _ := app.Test(req2)
 	if resp2.StatusCode != fiber.StatusConflict {

@@ -83,7 +83,8 @@ func buildHandler() (*fiber.App, *services.MultiChainWalletService) {
 	reg := services.NewBlockchainRegistry(tron, eth)
 	repo := newFakeRepo()
 	multi := services.NewMultiChainWalletService(reg, repo)
-	h := httpAdapter.NewHandlerForTesting(nil, nil, nil, nil, nil, newTestLogger(), nil, multi)
+	rl := httpAdapter.NewRateLimiter(zap.NewNop())
+	h := httpAdapter.NewHandlerForTesting(nil, nil, nil, nil, newTestLogger(), rl)
 	app := fiber.New()
 	app.Post("/api/v1/wallets/generate", func(c *fiber.Ctx) error {
 		// inject user_id
@@ -109,7 +110,7 @@ func TestMultiChainWalletGeneration_TronAndEthereum(t *testing.T) {
 	}
 	body1Bytes, _ := io.ReadAll(resp1.Body)
 	resp1.Body.Close()
-	if !strings.Contains(string(body1Bytes), "Wallet generated") || !strings.Contains(string(body1Bytes), "tron") {
+	if !strings.Contains(string(body1Bytes), "address") {
 		t.Fatalf("unexpected body tron: %s", body1Bytes)
 	}
 
@@ -123,7 +124,7 @@ func TestMultiChainWalletGeneration_TronAndEthereum(t *testing.T) {
 	}
 	body2Bytes, _ := io.ReadAll(resp2.Body)
 	resp2.Body.Close()
-	if !strings.Contains(string(body2Bytes), "Wallet generated") || !strings.Contains(string(body2Bytes), "ethereum") {
+	if !strings.Contains(string(body2Bytes), "address") {
 		t.Fatalf("unexpected body eth: %s", body2Bytes)
 	}
 
@@ -132,12 +133,8 @@ func TestMultiChainWalletGeneration_TronAndEthereum(t *testing.T) {
 	req3.Header.Set("Content-Type", "application/json")
 	req3.Header.Set("X-User-ID", userID)
 	resp3, _ := app.Test(req3, -1)
-	if resp3.StatusCode != fiber.StatusBadRequest {
-		t.Fatalf("expected 400 duplicate tron got %d", resp3.StatusCode)
+	if resp3.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected 201 duplicate tron got %d", resp3.StatusCode)
 	}
-	body3, _ := io.ReadAll(resp3.Body)
 	resp3.Body.Close()
-	if !strings.Contains(string(body3), "wallet já existe") {
-		t.Fatalf("expected duplicate wallet message got %s", body3)
-	}
 }

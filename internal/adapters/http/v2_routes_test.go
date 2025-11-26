@@ -51,7 +51,7 @@ func (r *inMemoryUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*userEnt
 }
 func (r *inMemoryUserRepo) FindByEmail(ctx context.Context, email string) (*userEntity.User, error) {
 	for _, u := range r.users {
-		if strings.EqualFold(u.Email, email) {
+		if strings.EqualFold(string(u.Email), email) {
 			return u, nil
 		}
 	}

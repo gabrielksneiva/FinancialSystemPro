@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -106,30 +107,34 @@ func (b *InMemoryBus) PublishAsync(ctx context.Context, event Event) {
 	}()
 }
 
-// BaseEvent é uma implementação base para eventos
-type BaseEvent struct {
+// OldBaseEvent é uma implementação base para eventos (DEPRECATED)
+type OldBaseEvent struct {
 	Type        string    `json:"type"`
-	Timestamp   time.Time `json:"timestamp"`
+	Timestamp   time.Time `json:"timestamp"` // backward compatible
 	AggregateId string    `json:"aggregate_id"`
+	Version     int       `json:"version"`
+	EventID     uuid.UUID `json:"event_id"`
 }
 
-func (e BaseEvent) EventType() string {
+func (e OldBaseEvent) EventType() string {
 	return e.Type
 }
 
-func (e BaseEvent) OccurredAt() time.Time {
+func (e OldBaseEvent) OccurredAt() time.Time {
 	return e.Timestamp
 }
 
-func (e BaseEvent) AggregateID() string {
+func (e OldBaseEvent) AggregateID() string {
 	return e.AggregateId
 }
 
-// NewBaseEvent cria um novo evento base
-func NewBaseEvent(eventType, aggregateID string) BaseEvent {
-	return BaseEvent{
+// NewOldBaseEvent cria um novo evento base antigo
+func NewOldBaseEvent(eventType, aggregateID string) OldBaseEvent {
+	return OldBaseEvent{
 		Type:        eventType,
 		Timestamp:   time.Now(),
 		AggregateId: aggregateID,
+		Version:     1,
+		EventID:     uuid.New(),
 	}
 }

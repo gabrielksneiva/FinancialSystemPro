@@ -5,7 +5,7 @@ import (
 	"financial-system-pro/internal/application/dto"
 	"financial-system-pro/internal/domain/entities"
 	"financial-system-pro/internal/domain/errors"
-	r "financial-system-pro/internal/infrastructure/database"
+	repositories "financial-system-pro/internal/infrastructure/database"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -26,15 +26,15 @@ type AuthServiceInterface interface {
 
 // TransactionServiceInterface define os métodos do serviço de transações
 type TransactionServiceInterface interface {
-	Deposit(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
-	Withdraw(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	Deposit(ctx context.Context, userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	Withdraw(ctx context.Context, userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
 	// WithdrawOnChain executa saque on-chain genérico usando tipo de blockchain
-	WithdrawOnChain(userID string, chain entities.BlockchainType, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	WithdrawOnChain(ctx context.Context, userID string, chain entities.BlockchainType, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
 	// WithdrawTron mantido para compatibilidade temporária; delega para WithdrawOnChain
-	WithdrawTron(userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
-	Transfer(userID string, amount decimal.Decimal, to string, callbackURL string) (*ServiceResponse, error)
-	GetBalance(userID string) (decimal.Decimal, error)
-	GetWalletInfo(userID uuid.UUID) (*r.WalletInfo, error)
+	WithdrawTron(ctx context.Context, userID string, amount decimal.Decimal, callbackURL string) (*ServiceResponse, error)
+	Transfer(ctx context.Context, userID string, amount decimal.Decimal, to string, callbackURL string) (*ServiceResponse, error)
+	GetBalance(ctx context.Context, userID string) (decimal.Decimal, error)
+	GetWalletInfo(userID uuid.UUID) (*repositories.WalletInfo, error)
 }
 
 // TronServiceInterface define os métodos do serviço Tron
@@ -54,7 +54,6 @@ type TronServiceInterface interface {
 }
 
 // Garantir que os serviços concretos implementam as interfaces
-var _ UserServiceInterface = (*UserService)(nil)
-var _ AuthServiceInterface = (*AuthService)(nil)
-var _ TransactionServiceInterface = (*TransactionService)(nil)
+// var _ UserServiceInterface = (*UserService)(nil) // REMOVED: legacy service deprecated
+// var _ AuthServiceInterface = (*AuthService)(nil) // REMOVED: legacy service deprecated
 var _ TronServiceInterface = (*TronService)(nil)

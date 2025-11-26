@@ -79,7 +79,7 @@ func (h *DDDTransactionHandler) Deposit(ctx *fiber.Ctx) error {
 
 	// Processar depósito com circuit breaker
 	_, err = breaker.Execute(func() (interface{}, error) {
-		return h.transactionService.Deposit(userID.String(), amount, depositReq.CallbackURL)
+		return h.transactionService.Deposit(ctx.Context(), userID.String(), amount, depositReq.CallbackURL)
 	})
 
 	// Initialize audit helper
@@ -156,7 +156,7 @@ func (h *DDDTransactionHandler) Withdraw(ctx *fiber.Ctx) error {
 
 	// Processar saque com circuit breaker
 	_, err = breaker.Execute(func() (interface{}, error) {
-		return h.transactionService.Withdraw(userID.String(), amount, "")
+		return h.transactionService.Withdraw(ctx.Context(), userID.String(), amount, "")
 	})
 
 	// Initialize audit helper
@@ -244,7 +244,7 @@ func (h *DDDTransactionHandler) Balance(ctx *fiber.Ctx) error {
 	}
 
 	// Apenas obter saldo direto do serviço (nova assinatura)
-	balance, err := h.transactionService.GetBalance(userIDStr)
+	balance, err := h.transactionService.GetBalance(ctx.Context(), userIDStr)
 	if err != nil {
 		h.logger.Error("failed to get balance", zap.Error(err), zap.String("user_id", userIDStr))
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get balance"})

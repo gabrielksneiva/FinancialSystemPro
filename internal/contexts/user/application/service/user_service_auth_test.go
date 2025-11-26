@@ -4,8 +4,8 @@ import (
 	"context"
 	"financial-system-pro/internal/contexts/user/domain/entity"
 	userRepo "financial-system-pro/internal/contexts/user/domain/repository"
+	"financial-system-pro/internal/contexts/user/domain/valueobject"
 	"financial-system-pro/internal/shared/events"
-	"financial-system-pro/internal/shared/utils"
 	"testing"
 
 	"github.com/google/uuid"
@@ -27,7 +27,7 @@ func (r *authTestUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*entity.
 }
 func (r *authTestUserRepo) FindByEmail(ctx context.Context, email string) (*entity.User, error) {
 	for _, u := range r.users {
-		if u.Email == email {
+		if u.Email.String() == email {
 			return u, nil
 		}
 	}
@@ -78,18 +78,16 @@ func TestAuthenticate_Sucesso(t *testing.T) {
 	usrRepo := newAuthTestUserRepo()
 	walletRepo := authTestWalletRepo{}
 	plain := "senha123"
-	hashed, err := utils.HashAString(plain)
-	if err != nil {
-		t.Fatalf("erro ao hashear: %v", err)
-	}
-	u := entity.NewUser("ok@test.com", hashed)
+	emailVO, _ := valueobject.NewEmail("ok@test.com")
+	hashedVO, _ := valueobject.HashFromRaw(plain)
+	u := entity.NewUser(emailVO, hashedVO)
 	_ = usrRepo.Create(context.Background(), u)
 	svc := NewUserService(usrRepo, walletRepo, bus, logger)
 	user, err := svc.Authenticate(context.Background(), "ok@test.com", plain)
 	if err != nil {
 		t.Fatalf("esperado autenticação bem sucedida, erro: %v", err)
 	}
-	if user == nil || user.Email != "ok@test.com" {
+	if user == nil || user.Email.String() != "ok@test.com" {
 		t.Fatalf("usuário incorreto retornado")
 	}
 }

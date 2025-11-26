@@ -25,7 +25,7 @@ func TestStartServer_Basic(t *testing.T) {
 	br := breaker.NewBreakerManager(lg)
 	ml := &minimalLifecycle{}
 	// Chamada: serviços DDD nil forçam ramo legacy fallback
-	StartServer(ml, app, lg, bus, nil, nil, nil, nil, nil, nil, nil, br, nil, nil)
+	StartServer(ml, app, lg, bus, nil, br, nil, nil, nil)
 	if len(ml.hooks) == 0 {
 		t.Fatalf("esperava hooks registrados")
 	}

@@ -31,7 +31,7 @@ func TestUserRepositoryCRUD(t *testing.T) {
 	require.Equal(t, u.Email, foundByID.Email)
 
 	// find by email
-	foundByEmail, err := repo.FindByEmail(ctx, u.Email)
+	foundByEmail, err := repo.FindByEmail(ctx, u.Email.String())
 	require.NoError(t, err)
 	require.Equal(t, u.ID, foundByEmail.ID)
 

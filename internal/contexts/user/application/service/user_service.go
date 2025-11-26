@@ -4,8 +4,8 @@ import (
 	"context"
 	"financial-system-pro/internal/contexts/user/domain/entity"
 	"financial-system-pro/internal/contexts/user/domain/repository"
+	"financial-system-pro/internal/contexts/user/domain/valueobject"
 	"financial-system-pro/internal/shared/events"
-	"financial-system-pro/internal/shared/utils"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -36,23 +36,25 @@ func NewUserService(
 }
 
 // CreateUser cria um novo usuário com wallet
-func (s *UserService) CreateUser(ctx context.Context, email, password string) (*entity.User, error) {
-	// Verificar se usuário já existe
-	existing, err := s.userRepo.FindByEmail(ctx, email)
-	if err == nil && existing != nil {
-		s.logger.Warn("user already exists", zap.String("email", email))
-		return nil, ErrUserAlreadyExists
-	}
 
-	// Hash da senha
-	hashedPassword, err := utils.HashAString(password)
+func (s *UserService) CreateUser(ctx context.Context, emailRaw, passwordRaw string) (*entity.User, error) {
+	// VOs
+	email, err := valueobject.NewEmail(emailRaw)
 	if err != nil {
-		s.logger.Error("failed to hash password", zap.Error(err))
+		return nil, ErrInvalidEmail
+	}
+	password, err := valueobject.HashFromRaw(passwordRaw)
+	if err != nil {
 		return nil, ErrPasswordHashFailed
 	}
-
+	// Verificar se usuário já existe
+	existing, err := s.userRepo.FindByEmail(ctx, email.String())
+	if err == nil && existing != nil {
+		s.logger.Warn("user already exists", zap.String("email", email.String()))
+		return nil, ErrUserAlreadyExists
+	}
 	// Criar entidade
-	user := entity.NewUser(email, hashedPassword)
+	user := entity.NewUser(email, password)
 
 	// Persistir
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -61,45 +63,30 @@ func (s *UserService) CreateUser(ctx context.Context, email, password string) (*
 	}
 
 	// Publicar evento
-	s.eventBus.PublishAsync(ctx, events.UserCreatedEvent{
-		BaseEvent: events.BaseEvent{Type: "user.created"},
-		UserID:    user.ID,
-		Email:     user.Email,
-		Name:      "",
-		CreatedAt: user.CreatedAt,
-	})
+	s.eventBus.PublishAsync(ctx, events.UserCreatedEvent{OldBaseEvent: events.NewOldBaseEvent("user.created", user.ID.String()), UserID: user.ID, Email: user.Email.String(), Name: "", CreatedAt: user.CreatedAt})
 
-	s.logger.Info("user created successfully",
-		zap.String("user_id", user.ID.String()),
-		zap.String("email", email),
-	)
+	s.logger.Info("user created successfully", zap.String("user_id", user.ID.String()), zap.String("email", email.String()))
 
 	return user, nil
 }
 
 // Authenticate valida credenciais e retorna o usuário
-func (s *UserService) Authenticate(ctx context.Context, email, password string) (*entity.User, error) {
-	user, err := s.userRepo.FindByEmail(ctx, email)
+func (s *UserService) Authenticate(ctx context.Context, emailRaw, passwordRaw string) (*entity.User, error) {
+	email, err := valueobject.NewEmail(emailRaw)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	user, err := s.userRepo.FindByEmail(ctx, email.String())
 	if err != nil || user == nil { // adiciona verificação nil para evitar panic
-		s.logger.Warn("user not found", zap.String("email", email))
+		s.logger.Warn("user not found", zap.String("email", email.String()))
 		return nil, ErrInvalidCredentials
 	}
-
-	// Verificar senha
-	valid, err := utils.HashAndCompareTwoStrings(password, user.Password)
-	if err != nil || !valid {
-		s.logger.Warn("invalid password", zap.String("email", email))
+	// Verificar senha usando VO
+	if !user.Password.Matches(passwordRaw) {
+		s.logger.Warn("invalid password", zap.String("email", email.String()))
 		return nil, ErrInvalidCredentials
 	}
-
-	// Publicar evento
-	s.eventBus.PublishAsync(ctx, events.UserAuthenticatedEvent{
-		BaseEvent: events.BaseEvent{Type: "user.authenticated"},
-		UserID:    user.ID,
-		Email:     user.Email,
-		IPAddress: "",
-		UserAgent: "",
-	})
+	s.eventBus.PublishAsync(ctx, events.UserAuthenticatedEvent{OldBaseEvent: events.NewOldBaseEvent("user.authenticated", user.ID.String()), UserID: user.ID, Email: user.Email.String(), IPAddress: "", UserAgent: ""})
 
 	return user, nil
 }
