@@ -1,4 +1,4 @@
-name: FinancialSystemPro Unified Pipeline v2.0
+name: FinancialSystemPro Unified Pipeline v2.1
 
 on:
   push:
@@ -13,61 +13,51 @@ env:
   IMAGE_NAME: financialsystempro
   REGISTRY: ghcr.io/${{ github.repository_owner }}
   CACHE_TAG: ghcr.io/${{ github.repository_owner }}/financialsystempro:buildcache
-  COVERAGE_MIN: 10
+  COVERAGE_MIN: 90
 
 jobs:
-  setup:
-    name: Prepare Environment
-    runs-on: ubuntu-latest
-    outputs:
-      go-version: ${{ steps.set.outputs.go-version }}
-    steps:
-      - name: Set outputs
-        id: set
-        run: echo "go-version=${GO_VERSION}" >> $GITHUB_OUTPUT
 
   lint:
     name: Lint (Parallel)
     runs-on: ubuntu-latest
-    needs: [ setup ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.setup.outputs.go-version }}
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
-          args: --timeout 5m
+          version: v1.64.8
+          install-mode: go
+          args: --timeout=5m
 
   vet:
     name: Vet (Parallel)
     runs-on: ubuntu-latest
-    needs: [ setup ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.setup.outputs.go-version }}
+          go-version: ${{ env.GO_VERSION }}
       - name: Go Vet
         run: go vet ./...
 
   fmt:
     name: Fmt (Parallel)
     runs-on: ubuntu-latest
-    needs: [ setup ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.setup.outputs.go-version }}
+          go-version: ${{ env.GO_VERSION }}
       - name: Check format
         run: |
-          UNFORMATTED=$(gofmt -l .)
+          UNFORMATTED=$(gofmt -s -l .)
           if [ -n "$UNFORMATTED" ]; then
             echo "The following files are not formatted:"
             echo "$UNFORMATTED"
@@ -83,9 +73,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.setup.outputs.go-version }}
-      - name: Enable Go caching
-        run: go env -w GOMODCACHE=$HOME/.cache/go-build
+          go-version: ${{ env.GO_VERSION }}
       - name: Install dependencies
         run: go mod download
       - name: Run Tests
@@ -103,7 +91,7 @@ jobs:
   security:
     name: Security Scan (Trivy + SBOM)
     runs-on: ubuntu-latest
-    needs: [ tests ]
+    needs: tests
     permissions:
       contents: read
       security-events: write
@@ -111,13 +99,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Trivy
+      - name: Install Trivy (secure)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.tar.gz
-          tar -xf trivy_Linux-64bit.tar.gz
-          sudo mv trivy /usr/local/bin/
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
       - name: Trivy FS Scan
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
@@ -136,8 +120,8 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          curl -sSfL https://raw.githubusercontent.com/CycloneDX/cyclonedx-gomod/main/install.sh | sh
-          ./cyclonedx-gomod mod -licenses -output bom.json
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+          $HOME/go/bin/cyclonedx-gomod mod -licenses -output bom.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -147,10 +131,11 @@ jobs:
   build:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: [ security ]
+    needs: security
     permissions:
       contents: read
       packages: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -179,3 +164,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.CACHE_TAG }}
           cache-to: type=registry,ref=${{ env.CACHE_TAG }},mode=max
+          provenance: false
