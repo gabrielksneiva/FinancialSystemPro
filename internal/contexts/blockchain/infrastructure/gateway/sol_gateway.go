@@ -48,8 +48,21 @@ func (g *SOLGateway) ValidateAddress(address string) bool {
 	if address == "" {
 		return false
 	}
-	// Base58 strings length for Solana usually 32..44
-	return len(address) >= 32 && len(address) <= 64
+
+	// Endereços Solana têm aproximadamente 43–44 caracteres em Base58
+	if len(address) < 32 || len(address) > 44 {
+		return false
+	}
+
+	// Validar caracteres Base58
+	const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+	for _, c := range address {
+		if !strings.ContainsRune(base58Alphabet, c) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (g *SOLGateway) EstimateFee(ctx context.Context, fromAddress, toAddress string, amountBaseUnit int64) (*bcdom.FeeQuote, error) {
