@@ -58,7 +58,7 @@ func (s *PostgresSnapshotStore) LoadSnapshot(ctx context.Context, aggregateID st
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, eventsourcing.SnapshotNotFoundError
+		return nil, eventsourcing.ErrSnapshotNotFound
 	}
 
 	if err != nil {

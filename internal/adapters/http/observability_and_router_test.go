@@ -16,6 +16,7 @@ func TestMetricsEndpointSetup(t *testing.T) {
 	SetupMetricsEndpoint(app)
 	req := httptest.NewRequest(fiber.MethodGet, "/metrics", nil)
 	resp, _ := app.Test(req, -1)
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 got %d", resp.StatusCode)
 	}
@@ -37,6 +38,7 @@ func TestCircuitBreakerHandler_StatusAndHealth_HTTP(t *testing.T) {
 	// Status endpoint
 	r1 := httptest.NewRequest(fiber.MethodGet, "/api/circuit-breakers", nil)
 	resp1, _ := app.Test(r1, -1)
+	defer resp1.Body.Close()
 	if resp1.StatusCode != 200 {
 		t.Fatalf("expected 200 status got %d", resp1.StatusCode)
 	}
@@ -44,6 +46,7 @@ func TestCircuitBreakerHandler_StatusAndHealth_HTTP(t *testing.T) {
 	// Health endpoint should be 503
 	r2 := httptest.NewRequest(fiber.MethodGet, "/api/circuit-breakers/health", nil)
 	resp2, _ := app.Test(r2, -1)
+	defer resp2.Body.Close()
 	if resp2.StatusCode != fiber.StatusServiceUnavailable {
 		t.Fatalf("expected 503 unhealthy got %d", resp2.StatusCode)
 	}
@@ -62,11 +65,13 @@ func TestHandler_AuditEndpointsPlaceholders(t *testing.T) {
 
 	r1 := httptest.NewRequest(fiber.MethodGet, "/audit", nil)
 	resp1, _ := app.Test(r1, -1)
+	defer resp1.Body.Close()
 	if resp1.StatusCode != fiber.StatusNotImplemented {
 		t.Fatalf("expected 501 got %d", resp1.StatusCode)
 	}
 	r2 := httptest.NewRequest(fiber.MethodGet, "/audit/stats", nil)
 	resp2, _ := app.Test(r2, -1)
+	defer resp2.Body.Close()
 	if resp2.StatusCode != fiber.StatusNotImplemented {
 		t.Fatalf("expected 501 got %d", resp2.StatusCode)
 	}
@@ -78,6 +83,7 @@ func TestHealthCheckFull_Degraded(t *testing.T) {
 	app.Get("/health/full", h.HealthCheckFull)
 	r := httptest.NewRequest(fiber.MethodGet, "/health/full", nil)
 	resp, _ := app.Test(r, -1)
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusServiceUnavailable { // degraded due to missing services
 		t.Fatalf("expected 503 degraded got %d", resp.StatusCode)
 	}
@@ -98,6 +104,7 @@ func TestRouterRegistersBasicEndpoints(t *testing.T) {
 	// Health endpoint
 	r := httptest.NewRequest(fiber.MethodGet, "/health", nil)
 	resp, _ := app.Test(r, -1)
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 health got %d", resp.StatusCode)
 	}

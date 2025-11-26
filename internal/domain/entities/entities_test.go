@@ -13,7 +13,7 @@ func TestWalletInfoStruct(t *testing.T) {
 }
 
 func TestTronTransactionRequestTags(t *testing.T) {
-	req := TronTransactionRequest{FromAddress: "A", ToAddress: "B", PrivateKey: "K", Amount: 10}
+	req := TronTransactionRequest{Amount: 10}
 	if req.Amount <= 0 {
 		t.Fatalf("amount inválido")
 	}

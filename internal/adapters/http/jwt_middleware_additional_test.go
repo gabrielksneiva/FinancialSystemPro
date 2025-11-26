@@ -38,6 +38,7 @@ func TestJWTMiddleware_InvalidTokenBranch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized { // falls into !decodedToken.Valid path
 		t.Fatalf("expected 401 invalid token got %d", resp.StatusCode)
 	}
@@ -58,6 +59,7 @@ func TestJWTMiddleware_InvalidUserID_Missing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401 missing user ID got %d", resp.StatusCode)
 	}
@@ -77,6 +79,7 @@ func TestJWTMiddleware_InvalidUserID_EmptyString(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401 empty user ID got %d", resp.StatusCode)
 	}
@@ -96,6 +99,7 @@ func TestJWTMiddleware_InvalidUserID_WrongType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected 401 wrong type user ID got %d", resp.StatusCode)
 	}
@@ -115,6 +119,7 @@ func TestJWTMiddleware_ExpiredToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusInternalServerError { // decode error or expired
 		t.Fatalf("expected 500 expired token got %d", resp.StatusCode)
 	}

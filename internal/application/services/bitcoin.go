@@ -10,6 +10,8 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/ethereum/go-ethereum/crypto"
+
+	// #nosec G507
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -43,7 +45,7 @@ func (b *BitcoinService) GenerateWallet(ctx context.Context) (*entities.Generate
 // deriveP2PKH cria endereço legacy mainnet (versão 0x00) a partir da public key.
 func (b *BitcoinService) deriveP2PKH(pub []byte) string {
 	sha := sha256.Sum256(pub)
-	rip := ripemd160.New()
+	rip := ripemd160.New() // #nosec G406
 	_, _ = rip.Write(sha[:])
 	pkHash := rip.Sum(nil) // 20 bytes
 	versioned := append([]byte{0x00}, pkHash...)

@@ -19,6 +19,7 @@ func TestRateLimiterAdapter_Methods(t *testing.T) {
 	app.Use(func(c *fiber.Ctx) error { c.Locals("user_id", "u1"); return c.Next() })
 	app.Get("/x", adapter.Middleware("deposit"), func(c *fiber.Ctx) error { return c.SendStatus(204) })
 	resp, _ := app.Test(httptest.NewRequest(fiber.MethodGet, "/x", nil))
+	defer resp.Body.Close()
 	if resp.StatusCode != 204 {
 		t.Fatalf("expected 204 got %d", resp.StatusCode)
 	}
@@ -33,11 +34,13 @@ func TestRateLimiterAdapter_Middleware_BlockAfterLimit(t *testing.T) {
 	app.Get("/login", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 	for i := 0; i < 5; i++ {
 		resp, _ := app.Test(httptest.NewRequest(fiber.MethodGet, "/login", nil))
+		defer resp.Body.Close()
 		if resp.StatusCode != fiber.StatusOK {
 			t.Fatalf("expected 200 got %d", resp.StatusCode)
 		}
 	}
 	resp, _ := app.Test(httptest.NewRequest(fiber.MethodGet, "/login", nil))
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusTooManyRequests {
 		t.Fatalf("expected 429 got %d", resp.StatusCode)
 	}

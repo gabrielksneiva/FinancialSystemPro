@@ -50,5 +50,6 @@ func TestGenerateWallet_Ethereum(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, errDo := app.Test(req)
 	require.NoError(t, errDo)
+	defer resp.Body.Close()
 	require.Equal(t, 201, resp.StatusCode)
 }

@@ -29,7 +29,10 @@ func acquireCtx(t *testing.T) *fiber.Ctx {
 	var captured *fiber.Ctx
 	app.Get("/", func(c *fiber.Ctx) error { captured = c; return c.SendStatus(200) })
 	req := httptest.NewRequest(fiber.MethodGet, "/", nil)
-	_, err := app.Test(req, -1)
+	resp, err := app.Test(req, -1)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		t.Fatalf("failed to get ctx: %v", err)
 	}

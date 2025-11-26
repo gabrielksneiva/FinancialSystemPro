@@ -18,7 +18,8 @@ func TestGetAvailableTronRPCMethods(t *testing.T) {
 		if m.Name == "eth_getBalance" {
 			foundBalance = true
 		}
-		if m.Name == "eth_sendRawTransaction" && m.Returns == "DATA - hash da transação" { /* valida formato */
+		if m.Name == "eth_sendRawTransaction" && m.Returns == "DATA - hash da transação" {
+			t.Log("validação futura do formato do retorno pendente")
 		}
 	}
 	if !foundBlockNumber || !foundBalance {

@@ -42,7 +42,6 @@ func newMockEvent(aggID, eventType string, data map[string]interface{}) *mockDom
 
 func TestEventEnvelope_Structure(t *testing.T) {
 	id := uuid.New()
-	now := time.Now()
 
 	envelope := EventEnvelope{
 		ID:            id,
@@ -50,10 +49,7 @@ func TestEventEnvelope_Structure(t *testing.T) {
 		AggregateType: "Order",
 		EventType:     "OrderCreated",
 		EventData:     []byte(`{"order_id":"123"}`),
-		Metadata:      map[string]interface{}{"user": "admin"},
 		Version:       1,
-		OccurredAt:    now,
-		CreatedAt:     now,
 	}
 
 	assert.Equal(t, id, envelope.ID)
@@ -102,13 +98,13 @@ func TestConcurrencyError_Fields(t *testing.T) {
 }
 
 func TestEventNotFoundError(t *testing.T) {
-	assert.Equal(t, "no events found for aggregate", EventNotFoundError.Error())
-	assert.True(t, errors.Is(EventNotFoundError, EventNotFoundError))
+	assert.Equal(t, "no events found for aggregate", ErrEventNotFound.Error())
+	assert.True(t, errors.Is(ErrEventNotFound, ErrEventNotFound))
 }
 
 func TestSnapshotNotFoundError(t *testing.T) {
-	assert.Equal(t, "no snapshot found for aggregate", SnapshotNotFoundError.Error())
-	assert.True(t, errors.Is(SnapshotNotFoundError, SnapshotNotFoundError))
+	assert.Equal(t, "no snapshot found for aggregate", ErrSnapshotNotFound.Error())
+	assert.True(t, errors.Is(ErrSnapshotNotFound, ErrSnapshotNotFound))
 }
 
 func TestMockDomainEvent_Implementation(t *testing.T) {
@@ -142,9 +138,7 @@ func TestEventEnvelope_MetadataHandling(t *testing.T) {
 func TestSnapshot_StateEncoding(t *testing.T) {
 	state := []byte(`{"balance":5000,"status":"active"}`)
 	snapshot := Snapshot{
-		AggregateID: "acc-123",
-		State:       state,
-		Version:     15,
+		State: state,
 	}
 
 	assert.NotNil(t, snapshot.State)

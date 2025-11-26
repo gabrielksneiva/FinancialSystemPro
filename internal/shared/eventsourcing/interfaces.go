@@ -130,8 +130,8 @@ func NewConcurrencyError(aggregateID string, expected, actual int) error {
 	}
 }
 
-// EventNotFoundError indicates no events found for an aggregate
-var EventNotFoundError = errors.New("no events found for aggregate")
+// ErrEventNotFound indicates no events found for an aggregate
+var ErrEventNotFound = errors.New("no events found for aggregate")
 
-// SnapshotNotFoundError indicates no snapshot found for an aggregate
-var SnapshotNotFoundError = errors.New("no snapshot found for aggregate")
+// ErrSnapshotNotFound indicates no snapshot found for an aggregate
+var ErrSnapshotNotFound = errors.New("no snapshot found for aggregate")

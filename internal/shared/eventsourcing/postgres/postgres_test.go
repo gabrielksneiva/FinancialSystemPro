@@ -105,7 +105,7 @@ func TestPostgresEventStore_LoadEvents_NotFound(t *testing.T) {
 	events, err := store.LoadEvents(context.Background(), "agg-999")
 
 	assert.Error(t, err)
-	assert.Equal(t, eventsourcing.EventNotFoundError, err)
+	assert.Equal(t, eventsourcing.ErrEventNotFound, err)
 	assert.Nil(t, events)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -249,7 +249,7 @@ func TestPostgresSnapshotStore_LoadSnapshot_NotFound(t *testing.T) {
 	snapshot, err := store.LoadSnapshot(context.Background(), "agg-222")
 
 	assert.Error(t, err)
-	assert.Equal(t, eventsourcing.SnapshotNotFoundError, err)
+	assert.Equal(t, eventsourcing.ErrSnapshotNotFound, err)
 	assert.Nil(t, snapshot)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

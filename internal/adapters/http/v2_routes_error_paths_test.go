@@ -123,7 +123,7 @@ func (r *epTxRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status txnEnt
 var _ txnRepo.TransactionRepository = (*epTxRepo)(nil)
 
 // Helper para criar app e retornar token
-func setupAppForErrors(t *testing.T) (*fiber.App, string) {
+func setupAppForErrors(_ *testing.T) (*fiber.App, string) {
 	logger := zap.NewNop()
 	bus := events.NewInMemoryBus(logger)
 	br := breaker.NewBreakerManager(logger)
@@ -135,7 +135,7 @@ func setupAppForErrors(t *testing.T) (*fiber.App, string) {
 	app := fiber.New()
 	registerV2DDDRoutes(app, svcUser, svcTxn, logger, br)
 	// criar token diretamente para evitar dependências do endpoint de login
-	token, _ := utils.CreateJWTToken(map[string]interface{}{"ID": uuid.New().String()})
+	token, _ := utils.CreateJWTToken(map[string]any{"ID": uuid.New().String()})
 	return app, token
 }
 
@@ -148,6 +148,7 @@ func TestV2Routes_DepositInvalidAmount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("esperado 400 obtido %d", resp.StatusCode)
 	}
@@ -162,6 +163,7 @@ func TestV2Routes_DepositBadBody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("esperado 400 invalid body obtido %d", resp.StatusCode)
 	}
@@ -175,6 +177,7 @@ func TestV2Routes_WithdrawUnauthorized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("esperado 401 obtido %d", resp.StatusCode)
 	}
@@ -187,6 +190,7 @@ func TestV2Routes_GetWalletInvalidID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("esperado 400 invalid id obtido %d", resp.StatusCode)
 	}
@@ -201,6 +205,7 @@ func TestV2Routes_WithdrawInvalidAmount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("esperado 400 withdraw invalid amount obtido %d", resp.StatusCode)
 	}
@@ -214,6 +219,7 @@ func TestV2Routes_DepositUnauthorized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("esperado 401 deposit unauthorized obtido %d", resp.StatusCode)
 	}
@@ -239,6 +245,7 @@ func TestV2Routes_LoginInvalidCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("login req err: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("esperado 401 login inválido obtido %d", resp.StatusCode)
 	}
@@ -259,6 +266,9 @@ func TestV2Routes_CreateUserConflict(t *testing.T) {
 	req1 := httptest.NewRequest("POST", "/v2/users", strings.NewReader(`{"email":"a@b.com","password":"password"}`))
 	req1.Header.Set("Content-Type", "application/json")
 	resp1, _ := app.Test(req1)
+	if resp1 != nil {
+		defer resp1.Body.Close()
+	}
 	if resp1.StatusCode != fiber.StatusCreated {
 		t.Fatalf("esperado 201 primeira criação obtido %d", resp1.StatusCode)
 	}
@@ -266,6 +276,9 @@ func TestV2Routes_CreateUserConflict(t *testing.T) {
 	req2 := httptest.NewRequest("POST", "/v2/users", strings.NewReader(`{"email":"a@b.com","password":"password"}`))
 	req2.Header.Set("Content-Type", "application/json")
 	resp2, _ := app.Test(req2)
+	if resp2 != nil {
+		defer resp2.Body.Close()
+	}
 	if resp2.StatusCode != fiber.StatusConflict {
 		t.Fatalf("esperado 409 conflito obtido %d", resp2.StatusCode)
 	}

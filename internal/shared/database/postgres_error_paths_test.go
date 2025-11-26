@@ -2,37 +2,9 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 )
-
-// fakeDB simula *sql.DB para testar caminhos de erro sem requerer Postgres real.
-type fakeDB struct {
-	pingErr  error
-	beginErr error
-	queryErr error
-	execErr  error
-}
-
-func (f *fakeDB) QueryContext(ctx context.Context, q string, args ...interface{}) (*sql.Rows, error) {
-	return nil, f.queryErr
-}
-func (f *fakeDB) QueryRowContext(ctx context.Context, q string, args ...interface{}) *sql.Row {
-	return &sql.Row{}
-}
-func (f *fakeDB) ExecContext(ctx context.Context, q string, args ...interface{}) (sql.Result, error) {
-	return nil, f.execErr
-}
-func (f *fakeDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
-	return nil, f.beginErr
-}
-func (f *fakeDB) PingContext(ctx context.Context) error { return f.pingErr }
-func (f *fakeDB) Close() error                          { return nil }
-func (f *fakeDB) Stats() sql.DBStats                    { return sql.DBStats{MaxOpenConnections: 1} }
-
-// wrapFake injects fakeDB into PostgresConnection for targeted error tests.
-func wrapFake(f *fakeDB) *PostgresConnection { return &PostgresConnection{db: (*sql.DB)(nil)} }
 
 // Because PostgresConnection expects *sql.DB real methods, we can't directly assign fakeDB.
 // Instead, we test NewPostgresConnection error branches by providing invalid connection strings

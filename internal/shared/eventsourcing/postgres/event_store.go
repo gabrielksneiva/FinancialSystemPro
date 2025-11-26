@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"financial-system-pro/internal/shared/eventsourcing"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,7 +27,12 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			// opcional: logar em vez de deixar vazio
+			log.Printf("rollback falhou: %v", err)
+		}
+	}()
 
 	// Check current version for optimistic concurrency control
 	var currentVersion int
@@ -140,7 +146,7 @@ func (s *PostgresEventStore) LoadEventsFrom(ctx context.Context, aggregateID str
 	}
 
 	if len(events) == 0 && fromVersion == 0 {
-		return nil, eventsourcing.EventNotFoundError
+		return nil, eventsourcing.ErrEventNotFound
 	}
 
 	return events, nil
