@@ -1,287 +1,228 @@
-name: Unified Pipeline
+name: FinancialSystemPro – Unified Pipeline v2.0
 
 on:
   push:
-    branches: ["main"]
-    tags:
-      - 'v*.*.*'
+    branches: [ "main", "develop", "release/*" ]
   pull_request:
-    branches: ["main"]
-  workflow_dispatch:
-    inputs:
-      coverage_min:
-        description: 'Cobertura mínima (%)'
-        required: false
-        default: '80'
-      allow_vuln:
-        description: 'Permitir vulnerabilidades HIGH/CRITICAL (true/false)'
-        required: false
-        default: 'false'
-      run_codeql:
-        description: 'Executar CodeQL (true/false)'
-        required: false
-        default: 'true'
-  schedule:
-    - cron: '0 3 * * *'
 
-concurrency:
-  group: pipeline-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.23"
+  IMAGE_NAME: financialsystempro
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  CACHE_TAG: ghcr.io/${{ github.repository_owner }}/financialsystempro:buildcache
+  COVERAGE_MIN: 10
 
 jobs:
-  lint:
-    name: Lint
+  setup:
+    name: Prepare Environment
     runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.set.outputs.go-version }}
+    steps:
+      - name: Set outputs
+        id: set
+        run: echo "go-version=${GO_VERSION}" >> $GITHUB_OUTPUT
+
+  # ------------------------------------------------------------------------------------
+  #
+  #   STATIC CHECKS (executam em paralelo)
+  #
+  # ------------------------------------------------------------------------------------
+
+  lint:
+    name: Lint (Parallel)
+    runs-on: ubuntu-latest
+    needs: [ setup ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
-      - name: GolangCI-Lint
-        uses: golangci/golangci-lint-action@v4
+          go-version: ${{ needs.setup.outputs.go-version }}
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          install-mode: goinstall
-          args: --timeout=5m --out-format=colored-line-number
+          args: --timeout 5m
 
   vet:
-    name: Vet
+    name: Vet (Parallel)
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [ setup ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
-      - run: go vet ./...
+          go-version: ${{ needs.setup.outputs.go-version }}
 
-  test:
-    name: Test & Coverage
+      - name: Go Vet
+        run: go vet ./...
+
+  fmt:
+    name: Fmt (Parallel)
     runs-on: ubuntu-latest
-    needs: vet
+    needs: [ setup ]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
-      - run: go mod download
-      - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
-      - name: Enforce coverage threshold (progressive)
+          go-version: ${{ needs.setup.outputs.go-version }}
+
+      - name: Check format
         run: |
-          # Threshold progressivo temporário enquanto aumentamos cobertura
-          # Incrementado de 15 -> 17% após novos testes (services, http)
-          THRESHOLD=${{ inputs.coverage_min || '17' }}
-          TOTAL=$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%","",$3); print $3}')
-          awk -v total="$TOTAL" -v thr="$THRESHOLD" 'BEGIN{ if (total+0 < thr+0) { printf "Coverage %.2f%% below threshold %.2f%%\n", total, thr; exit 1 } else { printf "Coverage %.2f%% meets threshold %.2f%%\n", total, thr } }'
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Unformatted Go files detected:"
+            gofmt -l .
+            exit 1
+          fi
+
+  # ------------------------------------------------------------------------------------
+  #
+  #   TESTS + COVERAGE (roda após os estáticos)
+  #
+  # ------------------------------------------------------------------------------------
+
+  tests:
+    name: Run Tests + Coverage Enforcement
+    runs-on: ubuntu-latest
+    needs: [ lint, vet, fmt ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          name: coverage.out
+          go-version: ${{ needs.setup.outputs.go-version }}
+
+      - name: Enable Go caching
+        run: go env -w GOMODCACHE=$HOME/.cache/go-build
+
+      - name: Install Test Dependencies
+        run: go mod download
+
+      - name: Run Tests
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+
+      - name: Enforce Coverage Threshold
+        run: |
+          TOTAL=$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%","",$3); print $3}')
+          echo "Coverage: $TOTAL% (min required: ${COVERAGE_MIN}%)"
+          awk -v total="$TOTAL" -v thr="${COVERAGE_MIN}" \
+              'BEGIN{ if (total < thr) exit 1 }'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
           path: coverage.out
 
+  # ------------------------------------------------------------------------------------
+  #
+  #   SECURITY – TRIVY + CODEQL + SBOM
+  #
+  # ------------------------------------------------------------------------------------
+
   security:
-    name: Security (gosec + Trivy + CodeQL)
+    name: Security Scan (FS + Docker + IaC + Secrets + SBOM)
     runs-on: ubuntu-latest
-    needs: test
+    needs: [ tests ]
     permissions:
       contents: read
       security-events: write
-      packages: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-      - name: Run gosec (SARIF)
-        run: $(go env GOPATH)/bin/gosec -no-fail -fmt=sarif -out=gosec.sarif ./...
-      - name: Upload SARIF (gosec)
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: gosec.sarif
-          category: gosec
-      - name: Conditional CodeQL Init
-        if: ${{ inputs.run_codeql == 'true' }}
-        uses: github/codeql-action/init@v3
-        with:
-          languages: go
-          queries: security-and-quality
-      - name: Conditional CodeQL Build
-        if: ${{ inputs.run_codeql == 'true' }}
-        run: go build ./...
-      - name: Conditional CodeQL Analyze
-        if: ${{ inputs.run_codeql == 'true' }}
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: /language:go
+
+      # Trivy install
       - name: Install Trivy
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y curl jq
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
-          ./trivy --version
-      - name: Trivy FS SARIF
-        run: ./trivy filesystem --ignore-unfixed --format sarif --output trivy-fs.sarif . || true
-      - name: Upload SARIF (Trivy FS)
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-fs.sarif
-          category: trivy-fs
-      - name: Trivy FS JSON
-        run: ./trivy filesystem --ignore-unfixed --severity HIGH,CRITICAL --format json --output trivy-fs.json . || true
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.tar.gz
+          tar -xf trivy_Linux-64bit.tar.gz
+          sudo mv trivy /usr/local/bin/
 
-  build_ci_image:
-    name: Build CI Image (GHCR)
+      # FS scan
+      - name: Trivy FS Scan
+        run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+
+      # IaC scan
+      - name: Trivy IaC Scan
+        run: trivy config . || true
+
+      # Secrets scan
+      - name: Trivy Secrets Scan
+        run: trivy secret . || true
+
+      # Build Docker local para scan
+      - name: Build Analysis Image
+        run: docker build -t analysis-image -f Dockerfile .
+
+      # Docker scan
+      - name: Trivy Docker Image Scan
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL analysis-image
+
+      # SBOM
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/CycloneDX/cyclonedx-gomod/main/install.sh | sh
+          ./cyclonedx-gomod mod -licenses -output bom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: bom.json
+
+      # Upload de relatórios SARIF
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bom.json
+          category: sbom
+
+  # ------------------------------------------------------------------------------------
+  #
+  #   BUILD DOCKER FINAL COM CACHE CROSS-JOB
+  #
+  # ------------------------------------------------------------------------------------
+
+  build:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: security
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [ security ]
     permissions:
       contents: read
       packages: write
-      security-events: write
     steps:
       - uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login GHCR
-        uses: docker/login-action@v3
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata
+        uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
       - name: Build & Push
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/financialsystempro:ci-latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Digest
-        run: echo IMAGE_DIGEST=${{ steps.build.outputs.digest }}
-      - name: Install Trivy (CI Image scan)
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y curl jq
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
-          ./trivy --version
-      - name: Trivy FS SARIF (CI)
-        run: ./trivy filesystem --ignore-unfixed --format sarif --output trivy-fs.sarif . || true
-      - name: Upload SARIF (Trivy FS CI)
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-fs.sarif
-          category: trivy-fs-ci
-      - name: Trivy FS JSON (CI)
-        run: ./trivy filesystem --ignore-unfixed --severity HIGH,CRITICAL --format json --output trivy-fs.json . || true
-      - name: Trivy Image SARIF
-        run: ./trivy image --ignore-unfixed --format sarif --output trivy-image.sarif ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.sha }} || true
-      - name: Upload SARIF (Trivy Image)
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-image.sarif
-          category: trivy-image-ci
-      - name: Trivy Image JSON
-        run: ./trivy image --ignore-unfixed --severity HIGH,CRITICAL --format json --output trivy-image.json ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.sha }} || true
-      - name: Gate vulnerabilities (CI image)
-        env:
-          ALLOW_VULN: ${{ inputs.allow_vuln || 'false' }}
-        run: |
-          jq -s '[.[].Results[].Vulnerabilities[]?]' trivy-fs.json trivy-image.json > combined.json || true
-          HIGH=$(jq '[.[] | select(.Severity=="HIGH")] | length' combined.json)
-          CRIT=$(jq '[.[] | select(.Severity=="CRITICAL")] | length' combined.json)
-          echo "HIGH: $HIGH CRITICAL: $CRIT"
-          if [ "$ALLOW_VULN" = "true" ]; then echo "ALLOW_VULN=true -> bypass"; exit 0; fi
-          if [ $HIGH -gt 0 ] || [ $CRIT -gt 0 ]; then echo "❌ Vulnerabilidades HIGH/CRITICAL"; exit 1; fi
-          echo "✅ Sem HIGH/CRITICAL"
-
-  release_image:
-    name: Release Image (tags)
-    runs-on: ubuntu-latest
-    needs: security
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push Release Image
-        id: release
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/financialsystempro:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Digest
-        run: echo RELEASE_DIGEST=${{ steps.release.outputs.digest }}
-      - name: Install Trivy
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y curl jq
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
-      - name: Trivy Release Image JSON
-        run: ./trivy image --ignore-unfixed --severity HIGH,CRITICAL --format json --output trivy-release.json ghcr.io/${{ github.repository_owner }}/financialsystempro:${{ github.ref_name }} || true
-      - name: Gate vulnerabilities (Release)
-        env:
-          ALLOW_VULN: ${{ inputs.allow_vuln || 'false' }}
-        run: |
-          HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length' trivy-release.json)
-          CRIT=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-release.json)
-          echo "HIGH: $HIGH CRITICAL: $CRIT"
-          if [ "$ALLOW_VULN" = "true" ]; then echo "ALLOW_VULN=true -> bypass"; exit 0; fi
-          if [ $HIGH -gt 0 ] || [ $CRIT -gt 0 ]; then echo "❌ Vulnerabilidades HIGH/CRITICAL"; exit 1; fi
-          echo "✅ Sem HIGH/CRITICAL"
-
-  coverage_report:
-    name: Codecov Upload
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage.out
-          path: .
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
-          flags: unittests
-          fail_ci_if_error: false
-
-# Nota: Após validar este workflow, considere remover ci.yml / cd.yml / codeql.yml para reduzir redundância.
-# Ambientes (production) podem ser reativados usando chave environment quando configurados no repo.
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=registry,ref=${{ env.CACHE_TAG }}
+          cache-to: |
+            type=registry,ref=${{ env.CACHE_TAG }},mode=max
