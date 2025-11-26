@@ -1,5 +1,4 @@
 package eventsourcing
-package eventsourcing
 
 import (
 	"errors"
@@ -21,13 +20,13 @@ type mockDomainEvent struct {
 	data          map[string]interface{}
 }
 
-func (m *mockDomainEvent) EventID() string             { return m.id }
-func (m *mockDomainEvent) EventType() string           { return m.eventType }
-func (m *mockDomainEvent) AggregateID() string         { return m.aggregateID }
-func (m *mockDomainEvent) AggregateType() string       { return m.aggregateType }
-func (m *mockDomainEvent) OccurredAt() time.Time       { return m.occurredAt }
-func (m *mockDomainEvent) Version() int                { return m.version }
-func (m *mockDomainEvent) Data() interface{}           { return m.data }
+func (m *mockDomainEvent) EventID() string       { return m.id }
+func (m *mockDomainEvent) EventType() string     { return m.eventType }
+func (m *mockDomainEvent) AggregateID() string   { return m.aggregateID }
+func (m *mockDomainEvent) AggregateType() string { return m.aggregateType }
+func (m *mockDomainEvent) OccurredAt() time.Time { return m.occurredAt }
+func (m *mockDomainEvent) Version() int          { return m.version }
+func (m *mockDomainEvent) Data() interface{}     { return m.data }
 
 func newMockEvent(aggID, eventType string, data map[string]interface{}) *mockDomainEvent {
 	return &mockDomainEvent{

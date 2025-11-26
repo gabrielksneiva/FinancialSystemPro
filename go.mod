@@ -3,6 +3,7 @@ module financial-system-pro
 go 1.25.0
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/go-playground/validator/v10 v10.28.0

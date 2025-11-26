@@ -17,10 +17,10 @@ type UserCreated struct {
 
 func NewUserCreated(userID uuid.UUID, email, walletAddress string) *UserCreated {
 	return &UserCreated{
-		BaseDomainEvent:     events.NewBaseDomainEvent("UserCreated", userID),
-		Email:         email,
-		WalletAddress: walletAddress,
-		WalletBalance: 0.0,
+		BaseDomainEvent: events.NewBaseDomainEvent("UserCreated", userID),
+		Email:           email,
+		WalletAddress:   walletAddress,
+		WalletBalance:   0.0,
 	}
 }
 
@@ -33,7 +33,7 @@ type UserDeactivated struct {
 func NewUserDeactivated(userID uuid.UUID, reason string) *UserDeactivated {
 	return &UserDeactivated{
 		BaseDomainEvent: events.NewBaseDomainEvent("UserDeactivated", userID),
-		Reason:    reason,
+		Reason:          reason,
 	}
 }
 
@@ -57,7 +57,7 @@ type PasswordChanged struct {
 func NewPasswordChanged(userID uuid.UUID) *PasswordChanged {
 	return &PasswordChanged{
 		BaseDomainEvent: events.NewBaseDomainEvent("PasswordChanged", userID),
-		ChangedAt: time.Now(),
+		ChangedAt:       time.Now(),
 	}
 }
 
@@ -71,10 +71,10 @@ type WalletCredited struct {
 
 func NewWalletCredited(userID uuid.UUID, amount, newBalance float64, reference string) *WalletCredited {
 	return &WalletCredited{
-		BaseDomainEvent:  events.NewBaseDomainEvent("WalletCredited", userID),
-		Amount:     amount,
-		NewBalance: newBalance,
-		Reference:  reference,
+		BaseDomainEvent: events.NewBaseDomainEvent("WalletCredited", userID),
+		Amount:          amount,
+		NewBalance:      newBalance,
+		Reference:       reference,
 	}
 }
 
@@ -88,9 +88,9 @@ type WalletDebited struct {
 
 func NewWalletDebited(userID uuid.UUID, amount, newBalance float64, reference string) *WalletDebited {
 	return &WalletDebited{
-		BaseDomainEvent:  events.NewBaseDomainEvent("WalletDebited", userID),
-		Amount:     amount,
-		NewBalance: newBalance,
-		Reference:  reference,
+		BaseDomainEvent: events.NewBaseDomainEvent("WalletDebited", userID),
+		Amount:          amount,
+		NewBalance:      newBalance,
+		Reference:       reference,
 	}
 }

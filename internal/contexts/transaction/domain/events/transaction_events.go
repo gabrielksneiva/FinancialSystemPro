@@ -20,13 +20,13 @@ type TransactionCreated struct {
 
 func NewTransactionCreated(txID, userID uuid.UUID, amount float64, currency, txType, blockchain, walletAddr string) *TransactionCreated {
 	return &TransactionCreated{
-		BaseDomainEvent:      events.NewBaseDomainEvent("TransactionCreated", txID),
-		UserID:         userID,
-		Amount:         amount,
-		Currency:       currency,
-		Type:           txType,
-		BlockchainType: blockchain,
-		WalletAddress:  walletAddr,
+		BaseDomainEvent: events.NewBaseDomainEvent("TransactionCreated", txID),
+		UserID:          userID,
+		Amount:          amount,
+		Currency:        currency,
+		Type:            txType,
+		BlockchainType:  blockchain,
+		WalletAddress:   walletAddr,
 	}
 }
 
@@ -41,11 +41,11 @@ type TransactionConfirmed struct {
 
 func NewTransactionConfirmed(txID uuid.UUID, hash string, confirmations int, blockNumber int64) *TransactionConfirmed {
 	return &TransactionConfirmed{
-		BaseDomainEvent:     events.NewBaseDomainEvent("TransactionConfirmed", txID),
-		Hash:          hash,
-		Confirmations: confirmations,
-		BlockNumber:   blockNumber,
-		ConfirmedAt:   time.Now(),
+		BaseDomainEvent: events.NewBaseDomainEvent("TransactionConfirmed", txID),
+		Hash:            hash,
+		Confirmations:   confirmations,
+		BlockNumber:     blockNumber,
+		ConfirmedAt:     time.Now(),
 	}
 }
 
@@ -59,10 +59,10 @@ type TransactionCompleted struct {
 
 func NewTransactionCompleted(txID uuid.UUID, hash string, finalAmount float64) *TransactionCompleted {
 	return &TransactionCompleted{
-		BaseDomainEvent:   events.NewBaseDomainEvent("TransactionCompleted", txID),
-		Hash:        hash,
-		CompletedAt: time.Now(),
-		FinalAmount: finalAmount,
+		BaseDomainEvent: events.NewBaseDomainEvent("TransactionCompleted", txID),
+		Hash:            hash,
+		CompletedAt:     time.Now(),
+		FinalAmount:     finalAmount,
 	}
 }
 
@@ -77,8 +77,8 @@ type TransactionFailed struct {
 func NewTransactionFailed(txID uuid.UUID, reason, errorCode string) *TransactionFailed {
 	return &TransactionFailed{
 		BaseDomainEvent: events.NewBaseDomainEvent("TransactionFailed", txID),
-		Reason:    reason,
-		FailedAt:  time.Now(),
-		ErrorCode: errorCode,
+		Reason:          reason,
+		FailedAt:        time.Now(),
+		ErrorCode:       errorCode,
 	}
 }
