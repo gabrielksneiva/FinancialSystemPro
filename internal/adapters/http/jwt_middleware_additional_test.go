@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // setupAppWithJWTMiddleware creates a minimal app to exercise middleware branches.
@@ -20,14 +20,12 @@ func setupAppWithJWTMiddleware(t *testing.T) *fiber.App {
 	return app
 }
 
-// alwaysValidClaims implements jwt.Claims with Valid always returning nil.
-type alwaysValidClaims struct{}
-
-func (a alwaysValidClaims) Valid() error { return nil }
-
 func TestJWTMiddleware_InvalidTokenBranch(t *testing.T) {
 	app := setupAppWithJWTMiddleware(t)
-	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, alwaysValidClaims{})
+	claims := jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := tok.SignedString([]byte("branch-secret"))
 	if err != nil {
 		t.Fatalf("sign failed: %v", err)

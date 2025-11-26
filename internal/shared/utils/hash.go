@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // getPrivateKey retrieves the current SECRET_KEY from environment at call time.
