@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: "1.24.3"
+  GO_VERSION: "1.24.10"
   IMAGE_NAME: financialsystempro
   REGISTRY: ghcr.io/${{ github.repository_owner }}
   CACHE_TAG: ghcr.io/${{ github.repository_owner }}/financialsystempro:buildcache

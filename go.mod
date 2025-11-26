@@ -1,6 +1,6 @@
 module financial-system-pro
 
-go 1.24.3
+go 1.24.10
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
