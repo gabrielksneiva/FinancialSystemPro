@@ -121,6 +121,9 @@ jobs:
           push: false
 
       # Trivy FS Scan usando a imagem de análise
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
       - name: Trivy FS Scan
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
 
