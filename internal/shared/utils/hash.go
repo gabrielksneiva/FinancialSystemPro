@@ -4,14 +4,14 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 )
 
-// getPrivateKey retrieves the current SECRET_KEY from environment at call time.
 func getPrivateKey() []byte { return []byte(os.Getenv("SECRET_KEY")) }
 
 func HashAString(stringToHash string) (string, error) {
@@ -34,11 +34,8 @@ func HashAndCompareTwoStrings(stringToHash, stringToCompare string) (bool, error
 }
 
 func CreateJWTToken(claims jwt.MapClaims) (string, error) {
-	var expStr = os.Getenv("EXPIRATION_TIME")
-	var expiration int
-	if expStr != "" {
-		expiration, _ = strconv.Atoi(expStr)
-	}
+	expStr := os.Getenv("EXPIRATION_TIME")
+	expiration, _ := strconv.Atoi(expStr)
 
 	claims["exp"] = time.Now().Add(time.Duration(expiration) * time.Second).Unix()
 
@@ -48,10 +45,21 @@ func CreateJWTToken(claims jwt.MapClaims) (string, error) {
 
 func DecodeJWTToken(tokenString string) (*jwt.Token, error) {
 	key := getPrivateKey()
-	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
 		return key, nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	return token, nil
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 )
 
 // setupAppWithJWTMiddleware creates a minimal app to exercise middleware branches.
@@ -22,9 +22,7 @@ func setupAppWithJWTMiddleware(t *testing.T) *fiber.App {
 
 func TestJWTMiddleware_InvalidTokenBranch(t *testing.T) {
 	app := setupAppWithJWTMiddleware(t)
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
-	}
+	claims := jwt.MapClaims{"ID": 12345, "exp": time.Now().Add(time.Hour).Unix()}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := tok.SignedString([]byte("branch-secret"))
 	if err != nil {

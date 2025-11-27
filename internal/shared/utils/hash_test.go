@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 )
 
 // TestMain configures environment before tests

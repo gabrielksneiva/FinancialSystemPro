@@ -1,6 +1,8 @@
 package breaker
 
 import (
+	"sync"
+
 	"go.uber.org/zap"
 )
 
@@ -8,6 +10,7 @@ import (
 type BreakerManager struct {
 	breakers map[string]*CircuitBreaker
 	logger   *zap.Logger
+	mu       sync.RWMutex
 }
 
 // NewBreakerManager cria um novo gerenciador de circuit breakers
@@ -20,17 +23,19 @@ func NewBreakerManager(logger *zap.Logger) *BreakerManager {
 
 // GetBreaker retorna um circuit breaker pelo nome (cria se não existir)
 func (bm *BreakerManager) GetBreaker(name string) *CircuitBreaker {
-	if breaker, exists := bm.breakers[name]; exists {
+	bm.mu.RLock()
+	breaker, exists := bm.breakers[name]
+	bm.mu.RUnlock()
+
+	if exists {
 		return breaker
 	}
 
-	breaker := NewDefaultCircuitBreaker(name, bm.logger)
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+
+	breaker = NewDefaultCircuitBreaker(name, bm.logger)
 	bm.breakers[name] = breaker
-
-	bm.logger.Info("circuit breaker created",
-		zap.String("name", name),
-	)
-
 	return breaker
 }
 

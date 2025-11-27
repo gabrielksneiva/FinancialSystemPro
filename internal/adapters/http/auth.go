@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 )
 
 func VerifyJWTMiddleware() fiber.Handler {

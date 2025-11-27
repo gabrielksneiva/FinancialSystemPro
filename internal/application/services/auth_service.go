@@ -7,7 +7,7 @@ import (
 	"financial-system-pro/internal/shared/utils"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 	"go.uber.org/zap"
 )
 

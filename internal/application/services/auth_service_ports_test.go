@@ -10,7 +10,7 @@ import (
 	repositories "financial-system-pro/internal/infrastructure/database"
 	"financial-system-pro/internal/shared/utils"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"

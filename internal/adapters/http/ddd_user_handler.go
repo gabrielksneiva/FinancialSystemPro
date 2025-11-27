@@ -6,7 +6,7 @@ import (
 	userSvc "financial-system-pro/internal/contexts/user/application/service"
 	"financial-system-pro/internal/shared/utils"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
 	"github.com/gofiber/fiber/v2"
