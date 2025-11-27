@@ -1,4 +1,4 @@
-name: FinancialSystemPro Unified Pipeline v2.1
+name: FinancialSystemPro Unified Pipeline v2.3
 
 on:
   push:
@@ -88,54 +88,15 @@ jobs:
           name: coverage
           path: coverage.out
 
-  security:
-    name: Security Scan (Trivy + SBOM)
+  security_and_build:
+    name: Security Scan + Build Docker
     runs-on: ubuntu-latest
     needs: tests
     permissions:
       contents: read
       security-events: write
       actions: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Trivy (secure)
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-
-      - name: Trivy FS Scan
-        run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
-
-      - name: Trivy IaC Scan
-        run: trivy config . || true
-
-      - name: Trivy Secrets Scan
-        run: trivy secret . || true
-
-      - name: Build Analysis Image
-        run: docker build -t analysis-image -f Dockerfile .
-
-      - name: Trivy Docker Image Scan
-        run: trivy image --exit-code 1 --severity HIGH,CRITICAL analysis-image
-
-      - name: Generate SBOM
-        run: |
-          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
-          $HOME/go/bin/cyclonedx-gomod mod -licenses -output bom.json
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: bom.json
-
-  build:
-    name: Build & Push Docker Image
-    runs-on: ubuntu-latest
-    needs: security
-    permissions:
-      contents: read
       packages: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -148,20 +109,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Metadata
-        id: meta
-        uses: docker/metadata-action@v5
+      # Build único da imagem
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
         with:
-          images: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          context: .
+          tags: analysis-image
+          load: true
+          cache-from: type=registry,ref=${{ env.CACHE_TAG }}
+          cache-to: type=registry,ref=${{ env.CACHE_TAG }},mode=max
+          push: false
 
-      - name: Build & Push
+      # Trivy FS Scan usando a imagem de análise
+      - name: Trivy FS Scan
+        run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+
+      # Trivy Image Scan
+      - name: Trivy Image Scan
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL analysis-image
+
+      # SBOM
+      - name: Generate SBOM
+        run: |
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+          $HOME/go/bin/cyclonedx-gomod mod -licenses -output bom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: bom.json
+
+      # Build final e push
+      - name: Build & Push Final Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=registry,ref=${{ env.CACHE_TAG }}
           cache-to: type=registry,ref=${{ env.CACHE_TAG }},mode=max
           provenance: false
