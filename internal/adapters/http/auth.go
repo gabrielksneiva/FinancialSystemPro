@@ -12,6 +12,7 @@ func VerifyJWTMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := c.Get("Authorization")
 		token, _ = strings.CutPrefix(token, "Bearer ")
+		token = strings.TrimSpace(token)
 
 		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Missing or invalid token"})
@@ -19,7 +20,8 @@ func VerifyJWTMiddleware() fiber.Handler {
 
 		decodedToken, err := utils.DecodeJWTToken(token)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error while decode token"})
+			// Qualquer erro ao decodificar o token deve ser tratado como não autorizado
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
 		}
 
 		if !decodedToken.Valid {

@@ -184,8 +184,8 @@ func TestV2JWT_InvalidToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	if resp.StatusCode != fiber.StatusInternalServerError {
-		t.Fatalf("expected 500 got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("expected 401 got %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
 }
@@ -221,7 +221,7 @@ func TestV2CircuitBreaker_OpenAfterFailures(t *testing.T) {
 
 	uid := uuid.New()
 	_ = ur.Create(context.Background(), &userEntity.User{ID: uid, Email: "breaker@test.com", Password: "hashed"})
-	token, _ := utils.CreateJWTToken(map[string]interface{}{"ID": uid.String()})
+	token, _ := utils.CreateJWTToken(map[string]any{"ID": uid.String()})
 
 	// Perform 6 failing deposit attempts to trip breaker (>5 consecutive failures)
 	for i := 0; i < 6; i++ {
@@ -232,8 +232,10 @@ func TestV2CircuitBreaker_OpenAfterFailures(t *testing.T) {
 		if err != nil {
 			t.Fatalf("request %d failed: %v", i, err)
 		}
-		if resp.StatusCode != fiber.StatusInternalServerError {
-			t.Errorf("attempt %d expected 500 got %d", i, resp.StatusCode)
+		// Todas as tentativas devem retornar 500 (erro na chamada); o breaker abre internamente
+		expectedStatus := fiber.StatusInternalServerError
+		if resp.StatusCode != expectedStatus {
+			t.Errorf("attempt %d expected %d got %d", i, expectedStatus, resp.StatusCode)
 		}
 		_ = resp.Body.Close()
 	}

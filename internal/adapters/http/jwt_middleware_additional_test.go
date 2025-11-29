@@ -116,7 +116,7 @@ func TestJWTMiddleware_ExpiredToken(t *testing.T) {
 		t.Fatalf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != fiber.StatusInternalServerError { // decode error or expired
-		t.Fatalf("expected 500 expired token got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusUnauthorized { // decode error or expired -> treated as unauthorized
+		t.Fatalf("expected 401 expired token got %d", resp.StatusCode)
 	}
 }
