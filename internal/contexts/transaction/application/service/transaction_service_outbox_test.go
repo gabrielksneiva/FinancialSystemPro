@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	appsvc "financial-system-pro/internal/application/services"
 	txEntity "financial-system-pro/internal/contexts/transaction/domain/entity"
 	txRepoIface "financial-system-pro/internal/contexts/transaction/domain/repository"
 	userEntity "financial-system-pro/internal/contexts/user/domain/entity"
 	userRepoIface "financial-system-pro/internal/contexts/user/domain/repository"
 	repos "financial-system-pro/internal/infrastructure/database"
+	outbox "financial-system-pro/internal/infrastructure/outbox"
 	"financial-system-pro/internal/shared/breaker"
 	"financial-system-pro/internal/shared/events"
 
@@ -21,7 +21,7 @@ import (
 )
 
 // outboxAdapterForTest returns a GormOutboxAdapter backed by in-memory SQLite with outbox table.
-func outboxAdapterForTest(t *testing.T) *appsvc.GormOutboxAdapter {
+func outboxAdapterForTest(t *testing.T) *outbox.GormOutboxAdapter {
 	dsn := "file:tx_outbox_" + uuid.New().String() + "?mode=memory&cache=shared"
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -42,7 +42,7 @@ func outboxAdapterForTest(t *testing.T) *appsvc.GormOutboxAdapter {
 		t.Fatalf("ddl err: %v", err)
 	}
 	nd := &repos.NewDatabase{DB: db, Logger: zap.NewNop()}
-	return appsvc.NewGormOutboxAdapter(nd)
+	return outbox.NewGormOutboxAdapter(nd)
 }
 
 // txRepoMockOutbox tracks updates for coverage; behaves as successful repo.
@@ -104,7 +104,7 @@ var _ txRepoIface.TransactionRepository = (*txRepoMockOutbox)(nil)
 var _ userRepoIface.WalletRepository = (*walletRepoMockOutbox)(nil)
 var _ userRepoIface.UserRepository = (*userRepoMockOutbox)(nil)
 
-func pendingOutboxCount(t *testing.T, a *appsvc.GormOutboxAdapter) int {
+func pendingOutboxCount(t *testing.T, a *outbox.GormOutboxAdapter) int {
 	list, err := a.ListPending(context.Background(), 100)
 	if err != nil {
 		t.Fatalf("list err: %v", err)

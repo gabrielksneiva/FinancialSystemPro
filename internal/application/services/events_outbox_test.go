@@ -1,8 +1,10 @@
-package services
+package services_test
 
 import (
 	"context"
+	appsvc "financial-system-pro/internal/application/services"
 	repos "financial-system-pro/internal/infrastructure/database"
+	outbox "financial-system-pro/internal/infrastructure/outbox"
 	"financial-system-pro/internal/shared/events"
 	"testing"
 
@@ -24,22 +26,22 @@ func TestGormOutboxAdapter_CRUD(t *testing.T) {
 	nd := &repos.NewDatabase{DB: db, Logger: zap.NewNop()}
 	// create table
 	ddl := `CREATE TABLE outbox (
-        id TEXT PRIMARY KEY,
-        aggregate TEXT,
-        type TEXT,
-        payload BLOB,
-        created_at DATETIME,
-        published BOOLEAN,
-        published_at DATETIME,
-        attempts INTEGER,
-        last_error TEXT
-    )`
+		id TEXT PRIMARY KEY,
+		aggregate TEXT,
+		type TEXT,
+		payload BLOB,
+		created_at DATETIME,
+		published BOOLEAN,
+		published_at DATETIME,
+		attempts INTEGER,
+		last_error TEXT
+	)`
 	if err := db.Exec(ddl).Error; err != nil {
 		t.Fatalf("ddl err: %v", err)
 	}
 
-	adapter := NewGormOutboxAdapter(nd)
-	rec := &OutboxRecord{ID: uuid.New(), Aggregate: "transaction", Type: "withdraw.completed", Payload: []byte("{}")}
+	adapter := outbox.NewGormOutboxAdapter(nd)
+	rec := &appsvc.OutboxRecord{ID: uuid.New(), Aggregate: "transaction", Type: "withdraw.completed", Payload: []byte("{}")}
 	if err := adapter.Save(context.Background(), rec); err != nil {
 		t.Fatalf("save err: %v", err)
 	}
@@ -64,12 +66,12 @@ func TestEventsDispatcher_DispatchOnce(t *testing.T) {
 	if err := db.Exec(`CREATE TABLE outbox (id TEXT PRIMARY KEY, aggregate TEXT, type TEXT, payload BLOB, created_at DATETIME, published BOOLEAN, published_at DATETIME, attempts INTEGER, last_error TEXT)`).Error; err != nil {
 		t.Fatalf("ddl err: %v", err)
 	}
-	adapter := NewGormOutboxAdapter(nd)
+	adapter := outbox.NewGormOutboxAdapter(nd)
 	bus := &mockBus{}
-	dispatcher := NewEventsDispatcher(adapter, bus)
+	dispatcher := appsvc.NewEventsDispatcher(adapter, bus)
 	// seed two records
-	_ = adapter.Save(context.Background(), &OutboxRecord{ID: uuid.New(), Aggregate: "transaction", Type: "deposit.completed", Payload: []byte("{}")})
-	_ = adapter.Save(context.Background(), &OutboxRecord{ID: uuid.New(), Aggregate: "transaction", Type: "withdraw.completed", Payload: []byte("{}")})
+	_ = adapter.Save(context.Background(), &appsvc.OutboxRecord{ID: uuid.New(), Aggregate: "transaction", Type: "deposit.completed", Payload: []byte("{}")})
+	_ = adapter.Save(context.Background(), &appsvc.OutboxRecord{ID: uuid.New(), Aggregate: "transaction", Type: "withdraw.completed", Payload: []byte("{}")})
 	sent, err := dispatcher.DispatchOnce(context.Background(), 10)
 	if err != nil {
 		t.Fatalf("dispatch err: %v", err)
