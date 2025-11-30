@@ -11,6 +11,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/hibiken/asynq v0.25.1
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/shopspring/decimal v1.4.0
@@ -27,7 +28,7 @@ require (
 	gorm.io/gorm v1.30.1
 )
 
-require github.com/mattn/go-sqlite3 v1.14.15 // indirect
+require github.com/mattn/go-sqlite3 v1.14.22 // indirect
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
