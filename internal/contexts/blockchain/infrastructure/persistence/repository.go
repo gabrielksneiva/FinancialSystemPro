@@ -41,6 +41,18 @@ func (r *TransactionRepository) GetByHash(ctx context.Context, hash string) (*Tr
 	return &tm, nil
 }
 
+func (r *TransactionRepository) ListPending(ctx context.Context) ([]*TransactionModel, error) {
+	var rows []*TransactionModel
+	if err := r.db.WithContext(ctx).Where("confirmations = 0").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *TransactionRepository) UpdateConfirmations(ctx context.Context, hash string, confirmations int64) error {
+	return r.db.WithContext(ctx).Model(&TransactionModel{}).Where("hash = ?", hash).Updates(map[string]interface{}{"confirmations": confirmations}).Error
+}
+
 type BalanceRepository struct{ db *gorm.DB }
 
 func NewBalanceRepository(db *gorm.DB) *BalanceRepository { return &BalanceRepository{db: db} }

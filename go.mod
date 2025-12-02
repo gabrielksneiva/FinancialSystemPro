@@ -6,6 +6,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/ethereum/go-ethereum v1.16.7
+	github.com/gabrielksneiva/blockchains-utils v0.1.2
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/golang-jwt/jwt v3.2.2+incompatible
